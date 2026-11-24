@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FolderOpen, Users } from "lucide-react";
+import { FolderOpen, Plus, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/Headers";
@@ -25,6 +25,15 @@ export default function GroupsPage() {
       <PageHeader
         title={t.groups.title}
         subtitle={`${groups.filter((group) => group.active).length} ${t.students.active}`}
+        action={
+          <Link
+            href="/groups/new"
+            className="press flex min-h-9 items-center gap-1 rounded-full bg-primary px-3 text-[12.5px] font-semibold text-white"
+          >
+            <Plus size={15} aria-hidden />
+            {t.groups.addGroup}
+          </Link>
+        }
       />
 
       {sorted.length === 0 ? (

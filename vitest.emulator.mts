@@ -9,8 +9,14 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["test/emulator/**/*.test.ts"],
-    testTimeout: 20_000,
-    hookTimeout: 30_000,
+    include: [
+      "test/emulator/**/*.test.ts",
+      "test/integration/**/*.test.ts",
+    ],
+    // Both suites talk to the same emulator project; never run them in parallel.
+    fileParallelism: false,
+    setupFiles: ["test/integration/setup.ts"],
+    testTimeout: 30_000,
+    hookTimeout: 40_000,
   },
 });

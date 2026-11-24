@@ -2,21 +2,33 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowRight,
   CalendarDays,
+  FolderOpen,
+  MoveRight,
+  Pencil,
   Phone,
   UserRound,
   Wallet,
 } from "lucide-react";
 import { BalanceChip } from "@/components/features/BalanceChip";
+import { ConfirmCard } from "@/components/ui/ConfirmCard";
 import { CounterRing } from "@/components/ui/CounterRing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader, SectionHeader } from "@/components/ui/Headers";
 import { NumberText } from "@/components/ui/NumberText";
+import { Sheet } from "@/components/ui/Sheet";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useTutorData } from "@/data/provider/hooks";
+import {
+  moveStudentAndReconcile,
+  setStudentActiveAndReconcile,
+} from "@/data/services/enrollmentService";
 import { formatArabicDate } from "@/domain/dateKey";
 import { formatMoney } from "@/domain/money";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -27,8 +39,14 @@ export default function StudentDetailPage() {
   const raw = params.studentId;
   const studentId = Array.isArray(raw) ? raw[0] : raw;
 
-  const { students, groups, payments, attendance, sessionsById, balances, settings } =
+  const { students, groups, payments, attendance, sessionsById, balances, settings, uid } =
     useTutorData();
+
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState(false);
 
   const student = students.find((item) => item.id === studentId);
   const group = groups.find((item) => item.id === student?.groupId);
@@ -140,6 +158,145 @@ export default function StudentDetailPage() {
           </a>
         </div>
       ) : null}
+
+      <div className="grid grid-cols-3 gap-2">
+        <Link
+          href={`/students/${student.id}/edit`}
+          className="press flex min-h-11 items-center justify-center gap-1.5 rounded-btn border border-white/70 bg-white/60 text-[12.5px] font-medium"
+        >
+          <Pencil size={15} className="text-primary" aria-hidden />
+          {t.forms.editAction}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setMoveOpen(true)}
+          className="press flex min-h-11 items-center justify-center gap-1.5 rounded-btn border border-white/70 bg-white/60 text-[12.5px] font-medium"
+        >
+          <MoveRight size={15} className="text-primary" aria-hidden />
+          {t.forms.moveAction}
+        </button>
+        <button
+          type="button"
+          onClick={() => setArchiveOpen(true)}
+          className="press flex min-h-11 items-center justify-center gap-1.5 rounded-btn border border-white/70 bg-white/60 text-[12.5px] font-medium"
+        >
+          {student.active ? (
+            <Archive size={15} className="text-danger" aria-hidden />
+          ) : (
+            <ArchiveRestore size={15} className="text-primary" aria-hidden />
+          )}
+          {student.active ? t.forms.archiveAction : t.forms.unarchiveAction}
+        </button>
+      </div>
+
+      {actionError ? (
+        <p role="alert" className="text-[12.5px] text-danger">
+          {t.forms.saveFailed}
+        </p>
+      ) : null}
+
+      <Sheet
+        open={archiveOpen}
+        onClose={() => setArchiveOpen(false)}
+        title={student.active ? t.students.archive : t.students.unarchive}
+      >
+        <ConfirmCard
+          title={
+            student.active
+              ? t.forms.confirmArchiveStudentTitle
+              : t.forms.confirmUnarchiveTitle
+          }
+          body={
+            student.active
+              ? t.forms.confirmArchiveStudentBody
+              : t.forms.confirmUnarchiveBody
+          }
+          confirmLabel={
+            student.active ? t.forms.archiveAction : t.forms.unarchiveAction
+          }
+          cancelLabel={t.common.cancel}
+          tone={student.active ? "danger" : "primary"}
+          busy={busy}
+          onCancel={() => setArchiveOpen(false)}
+          onConfirm={() => {
+            if (!uid) return;
+            setBusy(true);
+            setActionError(false);
+            void setStudentActiveAndReconcile(uid, student.id, !student.active, {
+              students,
+              sessionsById,
+              attendance,
+              payments,
+              settings,
+            })
+              .then(() => setArchiveOpen(false))
+              .catch(() => setActionError(true))
+              .finally(() => setBusy(false));
+          }}
+        />
+      </Sheet>
+
+      <Sheet
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        title={t.students.moveGroup}
+      >
+        {groups.filter((group) => group.active && group.id !== student.groupId)
+          .length === 0 ? (
+          <p className="text-[13px] text-muted">{t.forms.noActiveGroups}</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {groups
+              .filter((group) => group.active && group.id !== student.groupId)
+              .map((group) => (
+                <li key={group.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoveOpen(false);
+                      setPendingGroupId(group.id);
+                    }}
+                    className="press flex min-h-12 w-full items-center gap-2 rounded-btn px-3 text-[14px] hover:bg-white/50"
+                  >
+                    <FolderOpen size={18} className="text-primary" aria-hidden />
+                    {group.name}
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
+      </Sheet>
+
+      <Sheet
+        open={pendingGroupId !== null}
+        onClose={() => setPendingGroupId(null)}
+        title={t.students.moveGroup}
+      >
+        <ConfirmCard
+          title={t.forms.confirmMoveTitle}
+          body={t.forms.confirmMoveBody}
+          confirmLabel={t.forms.moveAction}
+          cancelLabel={t.common.cancel}
+          tone="primary"
+          busy={busy}
+          onCancel={() => setPendingGroupId(null)}
+          onConfirm={() => {
+            if (!uid || !pendingGroupId) return;
+            setBusy(true);
+            setActionError(false);
+            void moveStudentAndReconcile(uid, student.id, pendingGroupId, {
+              students,
+              sessionsById,
+              attendance,
+              payments,
+              settings,
+            })
+              .then(() => setPendingGroupId(null))
+              .catch(() => setActionError(true))
+              .finally(() => setBusy(false));
+          }}
+        />
+      </Sheet>
 
       <section>
         <SectionHeader title={t.students.attendanceHistory} />

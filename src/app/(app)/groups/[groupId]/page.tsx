@@ -2,15 +2,27 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowRight, Clock, FolderOpen, UserRound } from "lucide-react";
+import { useState } from "react";
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowRight,
+  Clock,
+  FolderOpen,
+  Pencil,
+  UserRound,
+} from "lucide-react";
 import { BalanceChip } from "@/components/features/BalanceChip";
+import { ConfirmCard } from "@/components/ui/ConfirmCard";
 import { CounterRing } from "@/components/ui/CounterRing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader, SectionHeader } from "@/components/ui/Headers";
 import { NumberText } from "@/components/ui/NumberText";
+import { Sheet } from "@/components/ui/Sheet";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useTutorData } from "@/data/provider/hooks";
+import { setGroupActive } from "@/data/services/groupService";
 import { useI18n } from "@/i18n/I18nProvider";
 import { weekdayLabel } from "@/lib/weekdays";
 
@@ -20,7 +32,10 @@ export default function GroupDetailPage() {
   const raw = params.groupId;
   const groupId = Array.isArray(raw) ? raw[0] : raw;
 
-  const { groups, students, balances, settings } = useTutorData();
+  const { groups, students, balances, settings, uid } = useTutorData();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState(false);
   const group = groups.find((item) => item.id === groupId);
   const groupStudents = students
     .filter((student) => student.groupId === groupId && student.active)
@@ -90,6 +105,69 @@ export default function GroupDetailPage() {
           </ul>
         )}
       </GlassCard>
+
+      <div className="flex gap-2">
+        <Link
+          href={`/groups/${group.id}/edit`}
+          className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-btn border border-white/70 bg-white/60 text-[14px] font-medium"
+        >
+          <Pencil size={16} className="text-primary" aria-hidden />
+          {t.forms.editAction}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setConfirmOpen(true)}
+          className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-btn border border-white/70 bg-white/60 text-[14px] font-medium"
+        >
+          {group.active ? (
+            <Archive size={16} className="text-danger" aria-hidden />
+          ) : (
+            <ArchiveRestore size={16} className="text-primary" aria-hidden />
+          )}
+          {group.active ? t.forms.archiveAction : t.forms.unarchiveAction}
+        </button>
+      </div>
+
+      <Sheet
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={group.active ? t.groups.archive : t.forms.unarchiveAction}
+      >
+        <ConfirmCard
+          title={
+            group.active
+              ? t.forms.confirmArchiveGroupTitle
+              : t.forms.confirmUnarchiveTitle
+          }
+          body={
+            group.active
+              ? t.forms.confirmArchiveGroupBody
+              : t.forms.confirmUnarchiveBody
+          }
+          confirmLabel={
+            group.active ? t.forms.archiveAction : t.forms.unarchiveAction
+          }
+          cancelLabel={t.common.cancel}
+          tone={group.active ? "danger" : "primary"}
+          busy={busy}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            if (!uid) return;
+            setBusy(true);
+            setActionError(false);
+            void setGroupActive(uid, group.id, !group.active)
+              .then(() => setConfirmOpen(false))
+              .catch(() => setActionError(true))
+              .finally(() => setBusy(false));
+          }}
+        />
+      </Sheet>
+
+      {actionError ? (
+        <p role="alert" className="text-[12.5px] text-danger">
+          {t.forms.saveFailed}
+        </p>
+      ) : null}
 
       <section>
         <SectionHeader

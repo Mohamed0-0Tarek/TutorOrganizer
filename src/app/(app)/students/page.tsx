@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Plus, Search, Users } from "lucide-react";
 import { BalanceChip } from "@/components/features/BalanceChip";
 import { CounterRing } from "@/components/ui/CounterRing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -52,6 +52,15 @@ export default function StudentsPage() {
       <PageHeader
         title={t.students.title}
         subtitle={`${students.filter((student) => student.active).length} ${t.students.active}`}
+        action={
+          <Link
+            href="/students/new"
+            className="press flex min-h-9 items-center gap-1 rounded-full bg-primary px-3 text-[12.5px] font-semibold text-white"
+          >
+            <Plus size={15} aria-hidden />
+            {t.students.addStudent}
+          </Link>
+        }
       />
 
       <div className="glass-card flex items-center gap-2 px-3 py-2">

@@ -44,3 +44,11 @@ export async function updateGroup(
     updatedAt: serverTimestamp(),
   });
 }
+
+export async function setGroupActive(
+  uid: string,
+  groupId: string,
+  active: boolean,
+): Promise<void> {
+  await updateGroup(uid, groupId, { active });
+}

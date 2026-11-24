@@ -15,10 +15,24 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 3 — groups & students CRUD
+
+- [ ] Create 5 groups / 12 students; reload → all still there.
+- [ ] Student form advanced section keeps `initialCounted` / `initialPaid`; the detail screen shows the computed `حصة N من M`.
+- [ ] Slots editor: add/remove slots, weekday chips + `HH:mm` + minutes; validation messages are Arabic.
+- [ ] Move a student to another group → list/detail show the new group; attendance history and counters unchanged.
+- [ ] Archive a student/group → gone from active lists, still reachable via the Archived filter and direct URL.
+- [ ] Restore → back in active lists, counters unchanged.
+- [ ] Search by name; all four student filters work.
+- [ ] Phone actions open dialer / WhatsApp.
+- [ ] Bottom-sheet confirmations: Escape, backdrop and cancel all close them; focus stays inside.
+- [ ] Create a student offline → queued write visible immediately, one sync on reconnect.
+
 ## Stage 1 — domain core (no UI)
 
-- [ ] `npm test` → 51 passing.
+- [ ] `npm test` → 60 passing.
 - [ ] `npm run typecheck` → no errors.
+- [ ] `npm run test:emulator` → 7 passing (4 rules + 3 CRUD integration).
 
 ## Offline matrix (repeat at Stages 2, 5, 6, 10)
 
