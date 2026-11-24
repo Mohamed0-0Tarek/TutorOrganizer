@@ -3,7 +3,7 @@
 Mobile-first, offline-first PWA for **one** private tutor (≈9–15 students, 4–7 groups): weekly schedule, fast attendance, per-student session counters, cash payments, dues, statistics and an AI assistant (text + voice).
 
 - **Stack:** Next.js 16 (App Router, TypeScript) · Tailwind CSS v4 · Firebase Auth + Firestore · Vercel · Gemini
-- **Status:** Stages 0–5 complete (Stage 2's shell/auth/provider work shipped with Stage 0; Stage 3 added groups & students CRUD; Stage 4 added session generation + schedule; Stage 5 added the attendance + counter vertical slice). See `~/.opencode/plan/tutor-manager-pwa-stages.md` for the full staged plan.
+- **Status:** Stages 0–6 complete (Stage 2's shell/auth/provider work shipped with Stage 0; Stage 3 CRUD; Stage 4 schedule; Stage 5 attendance; Stage 6 payments/dues). See `~/.opencode/plan/tutor-manager-pwa-stages.md` for the full staged plan.
 - **Spec:** `masterPlan.md` (current), `Tutor Manager (مدير المدرس) — Complete Build Plan.md` (superseded Flutter spec, kept for screen details).
 
 ## Setup

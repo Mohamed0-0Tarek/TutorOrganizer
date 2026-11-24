@@ -140,6 +140,8 @@ export const en: DictShape = {
     initialCounted: "Sessions counted before the app",
     initialPaid: "Sessions paid before the app",
     noHistory: "No history yet",
+    cycleNumber: "Cycle {n}",
+    paymentSessions: "Sessions covered",
   },
   groups: {
     title: "Groups",
@@ -174,6 +176,8 @@ export const en: DictShape = {
     copyReminder: "Copy reminder",
     whatsapp: "WhatsApp",
     reminders: "Reminder message",
+    reminderMessage: "Hi {name}, you have {amount} due. Let me know if you'd like to settle it.",
+    copied: "Message copied",
   },
   stats: {
     title: "Statistics",
@@ -296,6 +300,10 @@ export const en: DictShape = {
     moveAction: "Move",
     editAction: "Edit",
     savedAndSynced: "Saved",
+    paymentMismatch: "Amount differs from the session value — it will be saved as entered.",
+    confirmDeletePaymentTitle: "Delete this payment?",
+    confirmDeletePaymentBody: "The balance and counters return to their previous values.",
+    invalidAmount: "Amount must be a number above zero",
   },
   errors: {
     firebaseMissing: "Firebase is not configured",

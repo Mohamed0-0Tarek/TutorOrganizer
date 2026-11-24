@@ -19,7 +19,7 @@ export function FloatingAiButton() {
         disabled
         aria-disabled
         title={t.common.soon}
-        className="press pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/90 text-white opacity-60 shadow-[0_8px_20px_rgba(107,143,123,0.3)]"
+        className="press pointer-events-none flex h-12 w-12 items-center justify-center rounded-full bg-primary/90 text-white opacity-60 shadow-[0_8px_20px_rgba(107,143,123,0.3)]"
       >
         <Sparkles size={20} aria-hidden />
         <span className="sr-only">{t.common.soon}</span>

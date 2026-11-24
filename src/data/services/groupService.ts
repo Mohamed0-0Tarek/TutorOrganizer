@@ -5,6 +5,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
+import { definedFields } from "./cleanPatch";
 import { getFirebase } from "@/data/firebase/client";
 import { groupDocPath, groupsPath } from "@/data/paths";
 import type { Slot } from "@/domain/types";
@@ -40,7 +41,7 @@ export async function updateGroup(
 ): Promise<void> {
   const { db } = getFirebase();
   await updateDoc(doc(db, groupDocPath(uid, groupId)), {
-    ...patch,
+    ...definedFields(patch as Record<string, unknown>),
     updatedAt: serverTimestamp(),
   });
 }

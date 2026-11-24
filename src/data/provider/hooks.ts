@@ -50,7 +50,11 @@ export function useDueStudents() {
 
     const due = rows
       .filter((row) => row.balance.state === "DUE")
-      .sort((a, b) => b.balance.amountDue - a.balance.amountDue);
+      .sort(
+        (a, b) =>
+          b.balance.amountDue - a.balance.amountDue ||
+          a.student.name.localeCompare(b.student.name, "ar"),
+      );
 
     const almostDue = rows.filter(
       (row) =>

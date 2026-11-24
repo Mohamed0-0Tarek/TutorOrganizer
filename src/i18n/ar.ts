@@ -139,6 +139,8 @@ export const ar = {
     initialCounted: "حصص محسوبة قبل التطبيق",
     initialPaid: "حصص مدفوعة قبل التطبيق",
     noHistory: "مفيش سجل لسه",
+    cycleNumber: "الدورة {n}",
+    paymentSessions: "حصص مدفوعة",
   },
   groups: {
     title: "المجموعات",
@@ -173,6 +175,8 @@ export const ar = {
     copyReminder: "نسخ رسالة تذكير",
     whatsapp: "واتساب",
     reminders: "رسالة تذكير",
+    reminderMessage: "السلام عليكم {name}، عندك {amount} مستحق. لو تحب نرتب الدفعة كلمني.",
+    copied: "اتنسخت الرسالة",
   },
   stats: {
     title: "الإحصائيات",
@@ -295,6 +299,10 @@ export const ar = {
     moveAction: "نقل",
     editAction: "تعديل",
     savedAndSynced: "اتحفظ",
+    paymentMismatch: "المبلغ مش مساوي قيمة الحصص — هيتسجّل زي ما كتبت.",
+    confirmDeletePaymentTitle: "مسح الدفعة؟",
+    confirmDeletePaymentBody: "الرصيد والعدادات هيرجعوا لما كانوا عليه قبل الدفعة.",
+    invalidAmount: "المبلغ لازم رقم أكبر من صفر",
   },
   errors: {
     firebaseMissing: "إعدادات Firebase ناقصة",

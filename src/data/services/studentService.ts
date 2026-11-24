@@ -5,6 +5,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
+import { definedFields } from "./cleanPatch";
 import { getFirebase } from "@/data/firebase/client";
 import { studentDocPath, studentsPath } from "@/data/paths";
 import { todayKey } from "@/domain/dateKey";
@@ -51,7 +52,7 @@ export async function updateStudent(
 ): Promise<void> {
   const { db } = getFirebase();
   await updateDoc(doc(db, studentDocPath(uid, studentId)), {
-    ...patch,
+    ...definedFields(patch as Record<string, unknown>),
     updatedAt: serverTimestamp(),
   });
 }

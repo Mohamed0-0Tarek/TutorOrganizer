@@ -15,6 +15,17 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 6 — payments, student detail, dues
+
+- [ ] Dues total equals the sum of the rows; due list sorted by amount then name.
+- [ ] Payment sheet prefills `L × price`; changing the amount shows the non-blocking mismatch warning and a live balance preview.
+- [ ] Paid at session 3 → PAID_AHEAD; at 4 → SETTLED; at 8 with one payment → 200 ج.م due.
+- [ ] Edit amount → counters and balance unchanged; delete → due again immediately.
+- [ ] A payment covering 2 cycles settles both; deleting it restores the older balance.
+- [ ] Student detail shows cycles on attendance rows and edit/delete on every payment.
+- [ ] WhatsApp button copies the reminder text and opens `wa.me` (no phone → still copies).
+- [ ] Offline: record payment → preview correct, write queued, one sync on reconnect.
+
 ## Stage 5 — attendance + counter engine
 
 - [ ] Open a lesson: all students default to present; tapping a row toggles to "غايب" (tint + icon + haptic where supported).
@@ -51,9 +62,9 @@ date and device.
 
 ## Stage 1 — domain core (no UI)
 
-- [ ] `npm test` → 65 passing.
+- [ ] `npm test` → 70 passing.
 - [ ] `npm run typecheck` → no errors.
-- [ ] `npm run test:emulator` → 14 passing (4 rules + 3 CRUD + 3 sessions + 4 attendance).
+- [ ] `npm run test:emulator` → 17 passing (4 rules + 3 CRUD + 3 sessions + 4 attendance + 3 payments).
 
 ## Offline matrix (repeat at Stages 2, 5, 6, 10)
 

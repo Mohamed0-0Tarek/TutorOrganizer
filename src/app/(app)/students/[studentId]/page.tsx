@@ -12,10 +12,12 @@ import {
   MoveRight,
   Pencil,
   Phone,
+  Trash2,
   UserRound,
   Wallet,
 } from "lucide-react";
 import { BalanceChip } from "@/components/features/BalanceChip";
+import { PaymentSheet } from "@/components/features/PaymentSheet";
 import { ConfirmCard } from "@/components/ui/ConfirmCard";
 import { CounterRing } from "@/components/ui/CounterRing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -31,6 +33,8 @@ import {
 } from "@/data/services/enrollmentService";
 import { formatArabicDate } from "@/domain/dateKey";
 import { formatMoney } from "@/domain/money";
+import type { Payment } from "@/domain/types";
+import { format } from "@/i18n";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function StudentDetailPage() {
@@ -47,6 +51,9 @@ export default function StudentDetailPage() {
   const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [paymentStartDelete, setPaymentStartDelete] = useState(false);
 
   const student = students.find((item) => item.id === studentId);
   const group = groups.find((item) => item.id === student?.groupId);
@@ -77,6 +84,16 @@ export default function StudentDetailPage() {
   const studentAttendance = attendance
     .filter((row) => row.studentId === student.id)
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+
+  const cycleByRow = new Map<string, number>();
+  let countedSoFar = student.initialCounted;
+  for (const row of [...studentAttendance].reverse()) {
+    const counts =
+      row.status === "present" || (row.status === "absent" && settings.absenceCounts);
+    if (!counts) continue;
+    countedSoFar += 1;
+    cycleByRow.set(row.id, Math.floor((countedSoFar - 1) / settings.cycleLength) + 1);
+  }
 
   const phoneDigits = student.phone?.replace(/[^\d+]/g, "") ?? "";
 
@@ -159,7 +176,19 @@ export default function StudentDetailPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setEditingPayment(null);
+            setPaymentStartDelete(false);
+            setPaymentOpen(true);
+          }}
+          className="press flex min-h-11 items-center justify-center gap-1.5 rounded-btn bg-primary text-[12.5px] font-semibold text-white"
+        >
+          <Wallet size={15} aria-hidden />
+          {t.dues.record}
+        </button>
         <Link
           href={`/students/${student.id}/edit`}
           className="press flex min-h-11 items-center justify-center gap-1.5 rounded-btn border border-white/70 bg-white/60 text-[12.5px] font-medium"
@@ -325,11 +354,18 @@ export default function StudentDetailPage() {
                           month: "short",
                         })}
                       </NumberText>
-                    </p>
-                  </div>
-                  <StatusChip
-                    tone={row.status === "present" ? "success" : "danger"}
-                  >
+                      </p>
+                      {cycleByRow.has(row.id) ? (
+                        <StatusChip tone="neutral" className="mt-1">
+                          {format(t.students.cycleNumber, {
+                            n: cycleByRow.get(row.id) ?? 0,
+                          })}
+                        </StatusChip>
+                      ) : null}
+                    </div>
+                    <StatusChip
+                      tone={row.status === "present" ? "success" : "danger"}
+                    >
                     {row.status === "present"
                       ? t.attendance.present
                       : t.attendance.absent}
@@ -372,12 +408,48 @@ export default function StudentDetailPage() {
                     {t.today.sessionsToday}
                   </p>
                 </div>
-                <StatusChip tone="success">{t.common.saved}</StatusChip>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-label={t.common.edit}
+                    onClick={() => {
+                      setEditingPayment(payment);
+                      setPaymentStartDelete(false);
+                      setPaymentOpen(true);
+                    }}
+                    className="press rounded-full p-2 text-muted hover:text-primary"
+                  >
+                    <Pencil size={15} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t.common.delete}
+                    onClick={() => {
+                      setEditingPayment(payment);
+                      setPaymentStartDelete(true);
+                      setPaymentOpen(true);
+                    }}
+                    className="press rounded-full p-2 text-muted hover:text-danger"
+                  >
+                    <Trash2 size={15} aria-hidden />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {paymentOpen ? (
+        <PaymentSheet
+          key={`${editingPayment?.id ?? "new"}-${paymentStartDelete ? "delete" : "edit"}`}
+          open
+          onClose={() => setPaymentOpen(false)}
+          student={student}
+          payment={editingPayment ?? undefined}
+          initialDelete={paymentStartDelete}
+        />
+      ) : null}
     </div>
   );
 }
