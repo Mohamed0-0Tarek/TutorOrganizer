@@ -28,6 +28,8 @@ import {
   mapStudent,
 } from "@/data/mappers";
 import { createDefaults } from "@/data/services/settingsService";
+import { ensureGenerated } from "@/data/services/sessionGenerator";
+import { todayKey } from "@/domain/dateKey";
 import { computeCounters } from "@/domain/counters";
 import { computeStudentBalance } from "@/domain/balanceCalculator";
 import {
@@ -247,6 +249,34 @@ export function TutorDataProvider({ children }: { children: ReactNode }) {
     : SOURCES.every((source) => loaded[source])
       ? "ready"
       : "loading";
+
+  // Materialise the rolling horizon whenever hydrated data or connectivity
+  // changes. planGeneration is idempotent, so a no-op run writes nothing and
+  // cannot loop with its own snapshot.
+  useEffect(() => {
+    if (!uid || status !== "ready") return;
+
+    const run = () => {
+      void ensureGenerated(uid, { groups, sessions, today: todayKey() }).catch(
+        () => {
+          // Retried on the next snapshot / focus / online event.
+        },
+      );
+    };
+
+    run();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") run();
+    };
+    window.addEventListener("focus", run);
+    window.addEventListener("online", run);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", run);
+      window.removeEventListener("online", run);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [uid, status, groups, sessions]);
 
   const value = useMemo<TutorData>(
     () => ({

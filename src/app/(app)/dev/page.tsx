@@ -9,6 +9,7 @@ import {
   RefreshCcw,
   Trash2,
   UserX,
+  CalendarDays,
 } from "lucide-react";
 import { BigPrimaryButton } from "@/components/ui/BigPrimaryButton";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -20,7 +21,9 @@ import {
   setAttendanceStatus,
 } from "@/data/services/devSeedService";
 import { reconcileCounters } from "@/data/services/counterService";
+import { ensureGenerated } from "@/data/services/sessionGenerator";
 import { useTutorData } from "@/data/provider/hooks";
+import { todayKey } from "@/domain/dateKey";
 import { attendanceId } from "@/domain/sessionId";
 import { useI18n } from "@/i18n/I18nProvider";
 
@@ -147,6 +150,23 @@ export default function DevPage() {
         >
           <RefreshCcw size={16} aria-hidden />
           {t.dev.recompute}
+        </BigPrimaryButton>
+
+        <BigPrimaryButton
+          variant="ghost"
+          onClick={() =>
+            void run(t.dev.regenerate, () =>
+              ensureGenerated(uid!, {
+                groups: data.groups,
+                sessions: data.sessions,
+                today: todayKey(),
+              }),
+            )
+          }
+          disabled={!uid || busy !== null}
+        >
+          <CalendarDays size={16} aria-hidden />
+          {t.dev.regenerate}
         </BigPrimaryButton>
 
         <BigPrimaryButton

@@ -15,6 +15,17 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 4 — session generation + schedule
+
+- [ ] Add a group with real slots → 14-day schedule appears (day view + week view).
+- [ ] Run `/dev` → **Generate lessons** three times → each run reports `0` writes; no duplicates.
+- [ ] Edit a slot's time → future scheduled lesson moves to the new time; today's lesson and cancelled lessons stay untouched.
+- [ ] Add two extras on one day → labelled `_2`, `_3` (UI shows "إضافية"); generator leaves them alone.
+- [ ] Cancel a lesson → struck through, shown as "ملغية" everywhere; it stays cancelled after a reload and a regeneration.
+- [ ] Date stepper: previous/next day and "today" shortcut use Cairo dates.
+- [ ] Week view shows all 14 days including empty ones with honest empty copy.
+- [ ] Cancel a lesson that had attendance → computed counters drop immediately.
+
 ## Stage 3 — groups & students CRUD
 
 - [ ] Create 5 groups / 12 students; reload → all still there.
@@ -30,9 +41,9 @@ date and device.
 
 ## Stage 1 — domain core (no UI)
 
-- [ ] `npm test` → 60 passing.
+- [ ] `npm test` → 65 passing.
 - [ ] `npm run typecheck` → no errors.
-- [ ] `npm run test:emulator` → 7 passing (4 rules + 3 CRUD integration).
+- [ ] `npm run test:emulator` → 10 passing (4 rules + 3 CRUD + 3 sessions).
 
 ## Offline matrix (repeat at Stages 2, 5, 6, 10)
 

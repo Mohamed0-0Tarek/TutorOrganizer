@@ -51,7 +51,7 @@ describe("session ids", () => {
     expect(attendanceId("g1_20261124", "s1")).toBe("g1_20261124_s1");
   });
 
-  it("finds the next free extra number", () => {
+  it("finds the smallest free extra number (never reuses a taken slot)", () => {
     expect(
       nextExtraSessionNumber("g1", "2026-11-24", [
         "g1_20261124",
@@ -59,8 +59,14 @@ describe("session ids", () => {
         "g1_20261124_4",
         "g2_20261124_9",
       ]),
-    ).toBe(5);
+    ).toBe(3);
     expect(nextExtraSessionNumber("g1", "2026-11-24", ["g1_20261124"])).toBe(2);
+    expect(
+      nextExtraSessionNumber("g1", "2026-11-24", [
+        "g1_20261124_2",
+        "g1_20261124_3",
+      ]),
+    ).toBe(4);
   });
 
   it("converts between compact and dashed date keys", () => {

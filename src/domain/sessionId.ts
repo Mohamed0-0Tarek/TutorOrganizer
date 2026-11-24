@@ -68,14 +68,16 @@ export function nextExtraSessionNumber(
   dateKey: DateKey,
   existingIds: Iterable<string>,
 ): number {
-  let max = 1;
+  let candidate = 2;
+  const used = new Set<number>();
   for (const id of existingIds) {
     const parsed = parseSessionId(id);
     if (!parsed) continue;
     if (parsed.groupId !== groupId || parsed.dateKey !== dateKey) continue;
-    if (parsed.extraNumber && parsed.extraNumber > max) max = parsed.extraNumber;
+    if (parsed.extraNumber !== undefined) used.add(parsed.extraNumber);
   }
-  return max + 1;
+  while (used.has(candidate)) candidate += 1;
+  return candidate;
 }
 
 /** Compact `yyyyMMdd` back to a date key, for UI/debug helpers. */

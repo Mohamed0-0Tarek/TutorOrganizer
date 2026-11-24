@@ -97,6 +97,14 @@ export const ar = {
     scheduled: "مجدولة",
     regular: "عادية",
     extra: "إضافية",
+    prevDay: "يوم قبل",
+    nextDay: "يوم بعد",
+    cancelTitle: "إلغاء الحصة؟",
+    cancelBody: "الحصة هتتلغى في كل الشاشات. لو لها حضور، العدادات هتتحدث.",
+    cancelNoteHint: "سبب الإلغاء (اختياري)",
+    addExtraTitle: "حصة إضافية",
+    noGroupsForExtra: "اعمل مجموعة أول",
+    extraSaved: "اتضافت الحصة",
   },
   students: {
     title: "الطلاب",
@@ -240,6 +248,7 @@ export const ar = {
     allCached: "كل البيانات محمّلة",
     styleGallery: "معرض التصميم",
     styleGalleryBody: "الألوان والبطاقات والأزرار والحالات في مكان واحد.",
+    regenerate: "توليد الحصص",
   },
   forms: {
     newGroup: "مجموعة جديدة",

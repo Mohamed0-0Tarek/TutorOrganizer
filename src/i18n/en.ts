@@ -97,6 +97,15 @@ export const en: DictShape = {
     scheduled: "Scheduled",
     regular: "Regular",
     extra: "Extra",
+    prevDay: "Previous day",
+    nextDay: "Next day",
+    cancelTitle: "Cancel this lesson?",
+    cancelBody:
+      "It disappears everywhere. If attendance was saved, counters are recalculated.",
+    cancelNoteHint: "Reason (optional)",
+    addExtraTitle: "Extra lesson",
+    noGroupsForExtra: "Create a group first",
+    extraSaved: "Lesson added",
   },
   students: {
     title: "Students",
@@ -240,6 +249,7 @@ export const en: DictShape = {
     allCached: "Everything is hydrated",
     styleGallery: "Style gallery",
     styleGalleryBody: "Colours, cards, buttons and states in one place.",
+    regenerate: "Generate lessons",
   },
   forms: {
     newGroup: "New group",
