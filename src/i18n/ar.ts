@@ -82,6 +82,7 @@ export const ar = {
     firstRunTitle: "ابدأ ببياناتك",
     firstRunBody: "ضيف مجموعاتك وطلابك الأول، وبعدها هتلاقي حصصك هنا.",
     goToGroups: "روح للمجموعات",
+    quickActions: "إجراءات سريعة",
   },
   schedule: {
     title: "الجدول",
@@ -230,6 +231,9 @@ export const ar = {
     aboutBody: "مدير المدرس — دفتر خصوصي لمدرس واحد.",
     recomputeConfirmTitle: "تغيير طريقة الحساب؟",
     recomputeConfirmBody: "ده هيعيد حساب عدادات كل الطلاب. متأكد؟",
+    saved: "اتحفظ",
+    invalidCycleLength: "عدد الحصص لازم بين 2 و 8",
+    cycleHistoryWarning: "تغيير عدد الحصص هيغيّر تصنيف الطلاب الحاليين.",
     weekdays: {
       sunday: "الأحد",
       monday: "الاتنين",

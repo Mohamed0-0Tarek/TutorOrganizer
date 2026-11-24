@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateBalance } from "@/domain/balanceCalculator";
+import { calculateBalance, needsReminder } from "@/domain/balanceCalculator";
 import { expectedCycleAmount, formatMoney } from "@/domain/money";
 import { DEFAULT_SETTINGS } from "@/domain/types";
 
@@ -50,5 +50,14 @@ describe("money scenarios", () => {
     const settled = balance(8, 8);
     expect(settled.state).toBe("SETTLED");
     expect(balance(9, 8).state).toBe("IN_PROGRESS");
+  });
+
+  it("reminder targets exactly students whose next counted session is the 4th", () => {
+    expect(needsReminder(balance(3, 0), L)).toBe(true);
+    expect(needsReminder(balance(7, 4), L)).toBe(true);
+    // Paid ahead at session 3 and already due at 4 are never reminded.
+    expect(needsReminder(balance(3, 4), L)).toBe(false);
+    expect(needsReminder(balance(4, 0), L)).toBe(false);
+    expect(needsReminder(balance(0, 0), L)).toBe(false);
   });
 });

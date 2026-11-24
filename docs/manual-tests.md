@@ -15,6 +15,15 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 7 — Today dashboard, groups, settings
+
+- [ ] Today greeting + Cairo date, lesson cards with group position badge, due card and quick actions.
+- [ ] Reminder card lists only students whose next counted session is the 4th; paid-ahead and due students never appear.
+- [ ] Due count and total on Today match the Dues screen exactly.
+- [ ] Group list badge shows the modal position; outliers show `name 2/4`; group detail links straight to "add student" with the group preselected.
+- [ ] Settings: toggle "absence counts" → confirm → everyone is recomputed; change cycle length (2–8) → confirm → balances and badges update.
+- [ ] Currency label, week start and language persist after reload; language flips `dir` to LTR/RTL.
+
 ## Stage 6 — payments, student detail, dues
 
 - [ ] Dues total equals the sum of the rows; due list sorted by amount then name.
@@ -62,7 +71,7 @@ date and device.
 
 ## Stage 1 — domain core (no UI)
 
-- [ ] `npm test` → 70 passing.
+- [ ] `npm test` → 71 passing.
 - [ ] `npm run typecheck` → no errors.
 - [ ] `npm run test:emulator` → 17 passing (4 rules + 3 CRUD + 3 sessions + 4 attendance + 3 payments).
 

@@ -5,7 +5,9 @@ import {
   TutorDataContext,
   type TutorData,
 } from "@/data/provider/TutorDataProvider";
+import { needsReminder } from "@/domain/balanceCalculator";
 import { computeGroupStatus } from "@/domain/groupPosition";
+import { todayKey } from "@/domain/dateKey";
 import type { GroupStatus, StudentBalance } from "@/domain/types";
 
 export function useTutorData(): TutorData {
@@ -73,15 +75,26 @@ export function useDueStudents() {
 export function useTodaySessions() {
   const { sessions } = useTutorData();
   return useMemo(() => {
-    const now = new Date();
-    const key = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Africa/Cairo",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(now);
+    const key = todayKey();
     return sessions
       .filter((session) => session.dateKey === key)
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [sessions]);
+}
+
+/** Everything the Today screen needs, computed once from hydrated state. */
+export function useToday() {
+  const { settings, balances } = useTutorData();
+  const sessions = useTodaySessions();
+  const { due, total } = useDueStudents();
+
+  const reminder = useMemo(
+    () =>
+      [...balances.entries()]
+        .filter(([, balance]) => needsReminder(balance, settings.cycleLength))
+        .map(([studentId, balance]) => ({ studentId, balance })),
+    [balances, settings.cycleLength],
+  );
+
+  return { sessions, reminder, dueCount: due.length, dueTotal: total };
 }

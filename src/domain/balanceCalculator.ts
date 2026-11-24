@@ -79,3 +79,13 @@ export function computeStudentBalance(
 export function isDue(balance: Pick<StudentBalance, "state">): boolean {
   return balance.state === "DUE";
 }
+
+/** The reminder card: next counted session is the 4th (or 8th, 12th, …). */
+export function needsReminder(
+  balance: Pick<StudentBalance, "state" | "counted">,
+  cycleLength: number,
+): boolean {
+  if (balance.counted === 0) return false;
+  if (balance.state === "PAID_AHEAD" || balance.state === "DUE") return false;
+  return balance.counted % cycleLength === cycleLength - 1;
+}

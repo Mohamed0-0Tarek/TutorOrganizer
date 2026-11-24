@@ -173,10 +173,13 @@ export default function GroupDetailPage() {
         <SectionHeader
           title={t.students.title}
           action={
-            <span className="text-[12.5px] text-muted">
-              <NumberText>{groupStudents.length}</NumberText>{" "}
-              {t.groups.studentsCount}
-            </span>
+            <Link
+              href={`/students/new?groupId=${group.id}`}
+              className="press flex min-h-9 items-center gap-1 rounded-full bg-primary px-3 text-[12.5px] font-semibold text-white"
+            >
+              <UserRound size={14} aria-hidden />
+              {t.students.addStudent}
+            </Link>
           }
         />
         {groupStudents.length === 0 ? (

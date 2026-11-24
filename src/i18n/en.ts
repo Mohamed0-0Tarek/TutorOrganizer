@@ -82,6 +82,7 @@ export const en: DictShape = {
     firstRunTitle: "Start with your data",
     firstRunBody: "Add your groups and students first, then your lessons appear here.",
     goToGroups: "Go to groups",
+    quickActions: "Quick actions",
   },
   schedule: {
     title: "Schedule",
@@ -231,6 +232,9 @@ export const en: DictShape = {
     aboutBody: "Tutor Manager — a private notebook for one tutor.",
     recomputeConfirmTitle: "Change calculation rules?",
     recomputeConfirmBody: "This recalculates every student's counters. Continue?",
+    saved: "Saved",
+    invalidCycleLength: "Cycle length must be between 2 and 8",
+    cycleHistoryWarning: "Changing it reclassifies students who are mid-cycle.",
     weekdays: {
       sunday: "Sunday",
       monday: "Monday",

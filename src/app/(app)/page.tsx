@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -14,17 +15,18 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader, SectionHeader } from "@/components/ui/Headers";
 import { NumberText } from "@/components/ui/NumberText";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { useTutorData, useDueStudents, useTodaySessions } from "@/data/provider/hooks";
+import { useToday, useTutorData } from "@/data/provider/hooks";
 import { formatArabicDate, formatTime, todayKey } from "@/domain/dateKey";
+import { computeGroupStatus } from "@/domain/groupPosition";
 import { formatMoney } from "@/domain/money";
+import { format } from "@/i18n";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useMounted } from "@/lib/useMounted";
 
 export default function TodayPage() {
   const { t, locale } = useI18n();
   const { students, groups, settings, balances } = useTutorData();
-  const todaysSessions = useTodaySessions();
-  const { due, total } = useDueStudents();
+  const { sessions: todaysSessions, reminder, dueCount, dueTotal } = useToday();
 
   const mounted = useMounted();
   const hour = new Date().getHours();
@@ -42,13 +44,19 @@ export default function TodayPage() {
     : { greeting: t.today.title, date: "" };
 
   const activeStudents = students.filter((student) => student.active);
-  const reminder = students.filter((student) => {
-    if (!student.active) return false;
-    const balance = balances.get(student.id);
-    if (!balance || balance.counted === 0) return false;
-    if (balance.state === "PAID_AHEAD") return false;
-    return balance.counted % settings.cycleLength === settings.cycleLength - 1;
-  });
+  const statuses = useMemo(
+    () =>
+      new Map(
+        groups.map((group) => [
+          group.id,
+          computeGroupStatus(
+            students.filter((student) => student.groupId === group.id),
+            balances,
+          ),
+        ]),
+      ),
+    [groups, students, balances],
+  );
 
   const groupName = (groupId: string) =>
     groups.find((group) => group.id === groupId)?.name ?? "—";
@@ -139,6 +147,14 @@ export default function TodayPage() {
                               </span>
                             </p>
                           </div>
+                          {statuses.get(session.groupId)?.position ? (
+                            <StatusChip tone="info">
+                              {format(t.students.sessionOf, {
+                                position: statuses.get(session.groupId)?.position ?? 0,
+                                length: settings.cycleLength,
+                              })}
+                            </StatusChip>
+                          ) : null}
                           <StatusChip tone={tone}>{label}</StatusChip>
                           <ChevronLeft
                             size={16}
@@ -160,9 +176,9 @@ export default function TodayPage() {
               <GlassCard className="flex flex-col gap-3 p-4">
                 <p className="text-[12.5px] text-muted">{t.today.reminderBody}</p>
                 <ul className="flex flex-col gap-2">
-                  {reminder.map((student) => {
-                    const balance = balances.get(student.id);
-                    if (!balance) return null;
+                  {reminder.map(({ studentId, balance }) => {
+                    const student = students.find((item) => item.id === studentId);
+                    if (!student) return null;
                     return (
                       <li
                         key={student.id}
@@ -199,12 +215,12 @@ export default function TodayPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-[15px] font-semibold">
-                    <NumberText>{due.length}</NumberText> {t.today.dueBody}
+                    <NumberText>{dueCount}</NumberText> {t.today.dueBody}
                   </p>
                   <p className="mt-0.5 text-[12.5px] text-muted">
                     {t.today.dueAmount}:{" "}
                     <NumberText>
-                      {formatMoney(total, t.common.currency)}
+                      {formatMoney(dueTotal, t.common.currency)}
                     </NumberText>
                   </p>
                 </div>
@@ -215,6 +231,26 @@ export default function TodayPage() {
                 />
               </GlassCard>
             </Link>
+          </section>
+
+          <section>
+            <SectionHeader title={t.today.quickActions} />
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href="/schedule"
+                className="press flex min-h-12 items-center justify-center gap-2 rounded-btn border border-white/70 bg-white/60 text-[13px] font-medium"
+              >
+                <CalendarDays size={16} className="text-primary" aria-hidden />
+                {t.today.quickAddExtra}
+              </Link>
+              <Link
+                href="/dues"
+                className="press flex min-h-12 items-center justify-center gap-2 rounded-btn border border-white/70 bg-white/60 text-[13px] font-medium"
+              >
+                <Wallet size={16} className="text-primary" aria-hidden />
+                {t.today.quickRecordPayment}
+              </Link>
+            </div>
           </section>
         </>
       )}

@@ -33,7 +33,10 @@ export function StudentForm({ student }: { student?: Student }) {
     useTutorData();
 
   const [name, setName] = useState(student?.name ?? "");
-  const [groupId, setGroupId] = useState(student?.groupId ?? "");
+  const [groupId, setGroupId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("groupId") ?? "";
+  });
   const [price, setPrice] = useState(String(student?.pricePerSession ?? 50));
   const [startedAtKey, setStartedAtKey] = useState(student?.startedAtKey ?? todayKey());
   const [phone, setPhone] = useState(student?.phone ?? "");
