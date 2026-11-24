@@ -203,6 +203,12 @@ export const ar = {
     noStudents: "مفيش طلاب نشطين في المجموعة دي",
     joinTooLate: "الطالب ده انضم بعد تاريخ الحصة",
     sessionOf: "حصة {position} من {length}",
+    updateLesson: "تحديث الحصة",
+    unsavedTitle: "تغييرات مش محفوظة",
+    unsavedBody: "لو رحت دلوقتي التعديلات هتضيع.",
+    discard: "امشي من غير حفظ",
+    keepEditing: "كمل تعديل",
+    applied: "اتحدّث الحضور والعدادات",
   },
   settings: {
     title: "الإعدادات",
@@ -249,6 +255,7 @@ export const ar = {
     styleGallery: "معرض التصميم",
     styleGalleryBody: "الألوان والبطاقات والأزرار والحالات في مكان واحد.",
     regenerate: "توليد الحصص",
+    corrupt: "إفساد العدادات",
   },
   forms: {
     newGroup: "مجموعة جديدة",

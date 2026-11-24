@@ -204,6 +204,12 @@ export const en: DictShape = {
     noStudents: "No active students in this group",
     joinTooLate: "This student joined after the lesson date",
     sessionOf: "Session {position} of {length}",
+    updateLesson: "Update lesson",
+    unsavedTitle: "Unsaved changes",
+    unsavedBody: "Leaving now will discard your changes.",
+    discard: "Leave without saving",
+    keepEditing: "Keep editing",
+    applied: "Attendance and counters updated",
   },
   settings: {
     title: "Settings",
@@ -250,6 +256,7 @@ export const en: DictShape = {
     styleGallery: "Style gallery",
     styleGalleryBody: "Colours, cards, buttons and states in one place.",
     regenerate: "Generate lessons",
+    corrupt: "Corrupt counters",
   },
   forms: {
     newGroup: "New group",

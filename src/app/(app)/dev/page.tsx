@@ -10,6 +10,7 @@ import {
   Trash2,
   UserX,
   CalendarDays,
+  Bug,
 } from "lucide-react";
 import { BigPrimaryButton } from "@/components/ui/BigPrimaryButton";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -17,6 +18,7 @@ import { PageHeader } from "@/components/ui/Headers";
 import { NumberText } from "@/components/ui/NumberText";
 import {
   clearDemoData,
+  corruptCounters,
   seedDemoData,
   setAttendanceStatus,
 } from "@/data/services/devSeedService";
@@ -167,6 +169,19 @@ export default function DevPage() {
         >
           <CalendarDays size={16} aria-hidden />
           {t.dev.regenerate}
+        </BigPrimaryButton>
+
+        <BigPrimaryButton
+          variant="ghost"
+          onClick={() =>
+            void run(t.dev.corrupt, () =>
+              corruptCounters(uid!, data.students[0].id),
+            )
+          }
+          disabled={!uid || data.students.length === 0 || busy !== null}
+        >
+          <Bug size={16} aria-hidden />
+          {t.dev.corrupt}
         </BigPrimaryButton>
 
         <BigPrimaryButton

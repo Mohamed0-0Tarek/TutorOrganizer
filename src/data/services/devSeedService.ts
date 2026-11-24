@@ -3,6 +3,7 @@ import {
   doc,
   serverTimestamp,
   setDoc,
+  updateDoc,
   writeBatch,
 } from "firebase/firestore";
 import { getFirebase } from "@/data/firebase/client";
@@ -91,6 +92,19 @@ export async function seedDemoData(
 
   await batch.commit();
   return { groupId: groupRef.id, sessionId };
+}
+
+/** Deliberately break a cached counter so "Recompute counters" can be tested. */
+export async function corruptCounters(
+  uid: string,
+  studentId: string,
+): Promise<void> {
+  const { db } = getFirebase();
+  await updateDoc(doc(db, studentDocPath(uid, studentId)), {
+    sessionsCounted: 999,
+    sessionsPaid: 999,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function setAttendanceStatus(input: {

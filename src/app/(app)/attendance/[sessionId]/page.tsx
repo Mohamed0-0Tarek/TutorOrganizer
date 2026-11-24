@@ -1,27 +1,159 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowRight, CalendarDays, Info } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  Loader2,
+  UserRound,
+  X,
+} from "lucide-react";
 import { BalanceChip } from "@/components/features/BalanceChip";
+import { BigPrimaryButton } from "@/components/ui/BigPrimaryButton";
+import { ConfirmCard } from "@/components/ui/ConfirmCard";
 import { CounterRing } from "@/components/ui/CounterRing";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Field, inputClass } from "@/components/ui/Field";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PageHeader } from "@/components/ui/Headers";
 import { NumberText } from "@/components/ui/NumberText";
+import { Sheet } from "@/components/ui/Sheet";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useTutorData } from "@/data/provider/hooks";
+import {
+  saveLesson,
+  setAttendanceStatus,
+  type LessonResult,
+} from "@/data/services/attendanceService";
 import { formatArabicDate, formatTime } from "@/domain/dateKey";
+import { attendanceId } from "@/domain/sessionId";
+import type { Attendance, AttendanceStatus } from "@/domain/types";
+import { format } from "@/i18n";
 import { useI18n } from "@/i18n/I18nProvider";
+import { vibrate } from "@/lib/vibrate";
 
 export default function AttendancePage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const router = useRouter();
   const params = useParams();
   const raw = params.sessionId;
   const sessionId = Array.isArray(raw) ? raw[0] : raw;
 
-  const { sessions, students, balances, settings } = useTutorData();
-  const session = sessions.find((item) => item.id === sessionId);
+  const { students, attendance, payments, sessionsById, balances, settings, uid } =
+    useTutorData();
+  const session = sessionsById.get(sessionId ?? "");
+
+  const [absentIds, setAbsentIds] = useState<Set<string>>(
+    () =>
+      new Set(
+        attendance
+          .filter((row) => row.sessionId === sessionId && row.status === "absent")
+          .map((row) => row.studentId),
+      ),
+  );
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<LessonResult | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+
+  const roster = useMemo(
+    () =>
+      session
+        ? students
+            .filter(
+              (student) =>
+                student.groupId === session.groupId &&
+                student.active &&
+                student.startedAtKey <= session.dateKey,
+            )
+            .sort((a, b) => a.name.localeCompare(b.name, "ar"))
+        : [],
+    [students, session],
+  );
+
+  const changedRows = useMemo(() => {
+    const changes = new Map<string, AttendanceStatus>();
+    for (const student of roster) {
+      const row: Attendance | undefined = attendance.find(
+        (item) => item.sessionId === session?.id && item.studentId === student.id,
+      );
+      const current: AttendanceStatus = absentIds.has(student.id)
+        ? "absent"
+        : "present";
+      if (current !== (row?.status ?? "present")) {
+        changes.set(student.id, current);
+      }
+    }
+    return changes;
+  }, [roster, attendance, absentIds, session?.id]);
+
+  const dirty = changedRows.size > 0 || note.trim().length > 0;
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  function toggle(studentId: string) {
+    setAbsentIds((current) => {
+      const next = new Set(current);
+      if (next.has(studentId)) {
+        next.delete(studentId);
+      } else {
+        next.add(studentId);
+        vibrate();
+      }
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    if (!uid || !session || busy || roster.length === 0) return;
+    setBusy(true);
+    setMessage(null);
+    const source = { students, sessionsById, attendance, payments, settings };
+
+    try {
+      if (session.status === "completed") {
+        for (const [studentId, status] of changedRows) {
+          await setAttendanceStatus(uid, {
+            attendanceId: attendanceId(session.id, studentId),
+            sessionId: session.id,
+            studentId,
+            groupId: session.groupId,
+            dateKey: session.dateKey,
+            status,
+            source,
+          });
+        }
+        setResult({ countedStudents: roster.length, newlyDue: [] });
+      } else {
+        setResult(
+          await saveLesson(uid, {
+            sessionId: session.id,
+            absentIds: [...absentIds],
+            note,
+            source,
+          }),
+        );
+        setNote("");
+      }
+    } catch {
+      setMessage(t.forms.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!session) {
     return (
@@ -41,56 +173,74 @@ export default function AttendancePage() {
     );
   }
 
-  const roster = students
-    .filter(
-      (student) =>
-        student.groupId === session.groupId &&
-        student.active &&
-        student.startedAtKey <= session.dateKey,
-    )
-    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  const presentCount = roster.length - absentIds.size;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-16">
       <div>
-        <Link
-          href="/schedule"
+        <button
+          type="button"
+          onClick={() => (dirty ? setLeaveOpen(true) : router.push("/schedule"))}
           className="mb-2 flex min-h-8 items-center gap-1 text-[13px] text-muted"
         >
           <ArrowRight size={15} aria-hidden />
           {t.schedule.title}
-        </Link>
+        </button>
         <PageHeader
           title={session.groupName}
           subtitle={`${formatArabicDate(session.dateKey, {
             weekday: "long",
             day: "numeric",
             month: "long",
-          })} · ${formatTime(session.time)}`}
+          })} · ${formatTime(session.time, locale)}`}
+          action={
+            <StatusChip
+              tone={
+                session.status === "completed"
+                  ? "success"
+                  : session.status === "cancelled"
+                    ? "danger"
+                    : "neutral"
+              }
+            >
+              {session.status === "completed"
+                ? t.schedule.completed
+                : session.status === "cancelled"
+                  ? t.schedule.cancelled
+                  : t.schedule.scheduled}
+            </StatusChip>
+          }
         />
       </div>
 
-      <GlassCard className="flex items-center gap-2 p-3 text-[12.5px] text-muted">
-        <Info size={15} className="shrink-0 text-info" aria-hidden />
-        {t.attendance.alreadyCompleted}
-      </GlassCard>
+      {session.status === "completed" ? (
+        <GlassCard className="flex items-center gap-2 p-3 text-[12.5px] text-muted">
+          <CheckCircle2 size={15} className="shrink-0 text-info" aria-hidden />
+          {t.attendance.alreadyCompleted}
+        </GlassCard>
+      ) : null}
 
-      {session.status === "cancelled" ? (
-        <StatusChip tone="danger">{t.schedule.cancelled}</StatusChip>
+      {session.note ? (
+        <GlassCard className="p-3 text-[12.5px] text-muted">{session.note}</GlassCard>
       ) : null}
 
       {roster.length === 0 ? (
         <EmptyState
-          icon={<CalendarDays size={22} aria-hidden />}
+          icon={<UserRound size={22} aria-hidden />}
           title={t.attendance.noStudents}
         />
       ) : (
         <ul className="flex flex-col gap-2">
           {roster.map((student) => {
+            const absent = absentIds.has(student.id);
             const balance = balances.get(student.id);
             return (
               <li key={student.id}>
-                <GlassCard className="flex items-center gap-3 px-3.5 py-3">
+                <GlassCard
+                  className={`flex items-center gap-3 px-3.5 py-3 transition-colors ${
+                    absent ? "bg-danger/[0.08]" : ""
+                  }`}
+                >
                   <CounterRing
                     position={balance?.cyclePosition ?? 0}
                     length={settings.cycleLength}
@@ -99,19 +249,37 @@ export default function AttendancePage() {
                     <p className="truncate text-[14.5px] font-medium">
                       {student.name}
                     </p>
-                    <p className="text-[12px] text-muted">
-                      <NumberText>{balance?.cyclePosition ?? 0}</NumberText>/
-                      <NumberText>{settings.cycleLength}</NumberText>
-                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <NumberText className="text-[12px] text-muted">
+                        {balance?.cyclePosition ?? 0}/{settings.cycleLength}
+                      </NumberText>
+                      {balance ? (
+                        <BalanceChip
+                          balance={balance}
+                          t={t}
+                          cycleLength={settings.cycleLength}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                  {balance ? (
-                    <BalanceChip
-                      balance={balance}
-                      t={t}
-                      cycleLength={settings.cycleLength}
-                    />
-                  ) : null}
-                  <StatusChip tone="success">{t.attendance.present}</StatusChip>
+                  <button
+                    type="button"
+                    aria-label={student.name}
+                    aria-pressed={absent}
+                    onClick={() => toggle(student.id)}
+                    className={`press flex min-h-11 min-w-[76px] items-center justify-center gap-1 rounded-btn px-3 text-[13px] font-semibold ${
+                      absent
+                        ? "bg-danger text-white"
+                        : "bg-primary/15 text-primary"
+                    }`}
+                  >
+                    {absent ? (
+                      <X size={15} aria-hidden />
+                    ) : (
+                      <Check size={15} aria-hidden />
+                    )}
+                    {absent ? t.attendance.absent : t.attendance.present}
+                  </button>
                 </GlassCard>
               </li>
             );
@@ -119,15 +287,105 @@ export default function AttendancePage() {
         </ul>
       )}
 
-      <GlassCard className="flex items-center justify-between p-4">
-        <div>
-          <p className="text-[13px] font-medium">{t.attendance.saveLesson}</p>
-          <p className="text-[12px] text-muted">{t.common.soon}</p>
-        </div>
-        <StatusChip tone="neutral">
-          <NumberText>{roster.length}</NumberText> {t.today.studentsCount}
-        </StatusChip>
+      <GlassCard className="flex flex-col gap-1.5 p-4">
+        <Field label={t.attendance.note} hint={t.common.optional}>
+          <textarea
+            rows={2}
+            className={`${inputClass} min-h-16 py-2`}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        </Field>
       </GlassCard>
+
+      {message ? (
+        <p role="alert" className="text-[12.5px] text-danger">
+          {message}
+        </p>
+      ) : null}
+
+      {roster.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-14 z-30 mx-auto w-full max-w-md px-4">
+          <GlassCard className="flex items-center gap-3 p-2">
+            <div className="shrink-0 px-1 text-center">
+              <p className="text-[11px] text-muted">{t.today.studentsCount}</p>
+              <p className="text-[15px] font-semibold">
+                <NumberText>{presentCount}</NumberText>
+                <span className="text-muted">/{roster.length}</span>
+              </p>
+            </div>
+            <div className="flex-1">
+              <BigPrimaryButton
+                onClick={() => void handleSave()}
+                disabled={busy || !dirty}
+              >
+                {busy ? (
+                  <Loader2 size={16} className="animate-spin" aria-hidden />
+                ) : null}
+                {session.status === "completed"
+                  ? t.attendance.updateLesson
+                  : t.attendance.saveLesson}
+              </BigPrimaryButton>
+            </div>
+          </GlassCard>
+        </div>
+      ) : null}
+
+      <Sheet
+        open={result !== null}
+        onClose={() => setResult(null)}
+        title={t.attendance.savedTitle}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] leading-6 text-muted">
+            {result && result.newlyDue.length > 0
+              ? format(t.attendance.newlyDue, { n: result.newlyDue.length })
+              : t.attendance.savedBody}
+          </p>
+          {result?.newlyDue.length ? (
+            <ul className="flex flex-col gap-2">
+              {result.newlyDue.map((id) => {
+                const student = students.find((item) => item.id === id);
+                if (!student) return null;
+                return (
+                  <li key={id}>
+                    <Link
+                      href={`/students/${id}`}
+                      className="press flex min-h-12 items-center justify-between gap-2 rounded-btn bg-white/55 px-3"
+                    >
+                      <span className="truncate text-[14px] font-medium">
+                        {student.name}
+                      </span>
+                      <span className="text-[12.5px] font-medium text-primary-dark">
+                        {t.attendance.recordPaymentNow}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          <BigPrimaryButton onClick={() => setResult(null)}>
+            {t.common.close}
+          </BigPrimaryButton>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={leaveOpen}
+        onClose={() => setLeaveOpen(false)}
+        title={t.attendance.unsavedTitle}
+      >
+        <ConfirmCard
+          title={t.attendance.unsavedTitle}
+          body={t.attendance.unsavedBody}
+          confirmLabel={t.attendance.discard}
+          cancelLabel={t.attendance.keepEditing}
+          tone="danger"
+          onCancel={() => setLeaveOpen(false)}
+          onConfirm={() => router.push("/schedule")}
+        />
+      </Sheet>
     </div>
   );
 }

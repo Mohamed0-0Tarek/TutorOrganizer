@@ -28,6 +28,7 @@ import {
   mapStudent,
 } from "@/data/mappers";
 import { createDefaults } from "@/data/services/settingsService";
+import { reconcileCounters } from "@/data/services/counterService";
 import { ensureGenerated } from "@/data/services/sessionGenerator";
 import { todayKey } from "@/domain/dateKey";
 import { computeCounters } from "@/domain/counters";
@@ -277,6 +278,21 @@ export function TutorDataProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [uid, status, groups, sessions]);
+
+  // Self-heal cached counters from the source documents. Idempotent: a clean
+  // account produces no writes, so this never loops with its own snapshot.
+  useEffect(() => {
+    if (!uid || status !== "ready") return;
+    void reconcileCounters(uid, {
+      students,
+      sessionsById,
+      attendance,
+      payments,
+      settings,
+    }).catch(() => {
+      // Retried on the next snapshot / reconnect.
+    });
+  }, [uid, status, students, sessionsById, attendance, payments, settings]);
 
   const value = useMemo<TutorData>(
     () => ({

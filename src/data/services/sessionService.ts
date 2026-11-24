@@ -4,26 +4,54 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { getFirebase } from "@/data/firebase/client";
-import { sessionDocPath } from "@/data/paths";
+import { sessionDocPath, studentDocPath } from "@/data/paths";
+import { computeCounters } from "@/domain/counters";
 import {
   extraSessionId,
   nextExtraSessionNumber,
 } from "@/domain/sessionId";
 import type { DateKey } from "@/domain/types";
+import type { CounterSource } from "./counterService";
 
+/**
+ * Cancelling a lesson must drop the counters it contributed. With a hydrated
+ * source it also persists that change in the same batch as the status.
+ */
 export async function cancelSession(
   uid: string,
   sessionId: string,
   note?: string,
+  source?: CounterSource,
 ): Promise<void> {
   const { db } = getFirebase();
-  await updateDoc(doc(db, sessionDocPath(uid, sessionId)), {
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, sessionDocPath(uid, sessionId)), {
     status: "cancelled",
     ...(note?.trim() ? { note: note.trim() } : {}),
     updatedAt: serverTimestamp(),
   });
+
+  if (source) {
+    const sessionsById = new Map(source.sessionsById);
+    const session = sessionsById.get(sessionId);
+    if (session) sessionsById.set(sessionId, { ...session, status: "cancelled" });
+    const counters = computeCounters({ ...source, sessionsById });
+    for (const student of source.students) {
+      const next = counters.get(student.id);
+      if (!next) continue;
+      batch.update(doc(db, studentDocPath(uid, student.id)), {
+        sessionsCounted: next.counted,
+        sessionsPaid: next.paid,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
+  await batch.commit();
 }
 
 export async function updateSessionNote(
