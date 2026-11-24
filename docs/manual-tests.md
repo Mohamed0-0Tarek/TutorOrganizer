@@ -15,6 +15,15 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 8 — statistics
+
+- [ ] Month stepper moves through Cairo months; months with no data show the honest empty state.
+- [ ] Collected = sum of that month's payments; Outstanding = Dues total (both match a hand ledger).
+- [ ] Expected = Σ `price × cycleLength` for active students (capacity, not cash collected).
+- [ ] Attendance rate = present / attendance docs of completed lessons in the month.
+- [ ] Six-month income chart and per-group attendance chart render at 360 px with Latin digits, Arabic month names and flat colours.
+- [ ] Top absences / slowest payers / top groups lists match the seeded dataset.
+
 ## Stage 7 — Today dashboard, groups, settings
 
 - [ ] Today greeting + Cairo date, lesson cards with group position badge, due card and quick actions.
@@ -71,7 +80,7 @@ date and device.
 
 ## Stage 1 — domain core (no UI)
 
-- [ ] `npm test` → 71 passing.
+- [ ] `npm test` → 79 passing.
 - [ ] `npm run typecheck` → no errors.
 - [ ] `npm run test:emulator` → 17 passing (4 rules + 3 CRUD + 3 sessions + 4 attendance + 3 payments).
 

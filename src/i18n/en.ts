@@ -192,6 +192,9 @@ export const en: DictShape = {
     slowPayers: "Slowest payers",
     topGroups: "Top groups by income",
     noData: "No data for this month",
+    prevMonth: "Previous month",
+    nextMonth: "Next month",
+    neverPaid: "No payment recorded yet",
   },
   attendance: {
     title: "Attendance",

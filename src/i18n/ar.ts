@@ -191,6 +191,9 @@ export const ar = {
     slowPayers: "أبطأ في الدفع",
     topGroups: "أعلى المجموعات دخلًا",
     noData: "مفيش بيانات للشهر ده",
+    prevMonth: "شهر قبل",
+    nextMonth: "شهر بعد",
+    neverPaid: "ما سجّلش دفعة لسه",
   },
   attendance: {
     title: "الحضور",
