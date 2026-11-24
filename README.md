@@ -3,7 +3,7 @@
 Mobile-first, offline-first PWA for **one** private tutor (≈9–15 students, 4–7 groups): weekly schedule, fast attendance, per-student session counters, cash payments, dues, statistics and an AI assistant (text + voice).
 
 - **Stack:** Next.js 16 (App Router, TypeScript) · Tailwind CSS v4 · Firebase Auth + Firestore · Vercel · Gemini
-- **Status:** Stages 0–8 complete (Stage 2's shell/auth/provider work shipped with Stage 0; Stage 3 CRUD; Stage 4 schedule; Stage 5 attendance; Stage 6 payments; Stage 7 Today/settings; Stage 8 statistics). See `~/.opencode/plan/tutor-manager-pwa-stages.md` for the full staged plan.
+- **Status:** Stages 0–9 complete (Stage 2's shell/auth/provider work shipped with Stage 0; Stage 3 CRUD; Stage 4 schedule; Stage 5 attendance; Stage 6 payments; Stage 7 Today/settings; Stage 8 statistics; Stage 9 AI assistant, pending live-key + voice verification). See `~/.opencode/plan/tutor-manager-pwa-stages.md` for the full staged plan.
 - **Spec:** `masterPlan.md` (current), `Tutor Manager (مدير المدرس) — Complete Build Plan.md` (superseded Flutter spec, kept for screen details).
 
 ## Setup
@@ -39,6 +39,24 @@ npm run dev
 
 `npm run test:emulator` boots the emulators and runs the Firestore rules tests
 against `firestore.rules`.
+
+### AI assistant (Stage 9)
+
+Server-only keys in `.env.local`:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT=<base64 service-account JSON>
+GEMINI_API_KEY=<key>
+GEMINI_MODEL=gemini-2.5-flash
+AI_DAILY_LIMIT=100
+AI_ENABLED=true              # false hides the assistant button
+```
+
+The route is `POST /api/ai/assistant`. It verifies a Firebase ID token, enforces
+a per-tutor daily cap, answers only from read tools, and returns **proposals**
+that the UI applies only after you confirm. Voice uses direct inline audio where
+Gemini accepts the MIME type, and falls back to `ar-EG` Web Speech → text
+otherwise; see `docs/spikes.md` for the Spike B verdict table.
 
 `NEXT_PUBLIC_USE_EMULATORS=1` also disables IndexedDB persistence (emulator data is ephemeral, and stale cache there causes confusing bugs). Offline behaviour is verified against a real project, not the emulator.
 

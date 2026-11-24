@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
+import { AiConfigProvider } from "@/components/features/AiConfig";
 import { AuthProvider } from "@/data/auth/AuthProvider";
 import { I18nProvider } from "@/i18n/I18nProvider";
 
@@ -33,7 +34,9 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className={`${cairo.variable} h-full`}>
       <body className="min-h-dvh antialiased">
         <I18nProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AiConfigProvider enabled={process.env.AI_ENABLED !== "false"}>
+            <AuthProvider>{children}</AuthProvider>
+          </AiConfigProvider>
         </I18nProvider>
       </body>
     </html>

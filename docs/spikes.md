@@ -65,6 +65,11 @@ HTTP status plus the transcription (exit code 0 = accepted).
    (server still caps usage; no audio leaves the phone).
 3. Client-side conversion (WAV/MP4) — last resort, only if 1 and 2 both fail.
 
+In the shipped route (`POST /api/ai/assistant`), a rejected audio MIME returns
+`422 { error: "audioUnsupported" }`; the sheet shows the calm fallback copy and
+the user types instead. Phone numbers are stripped from every tool result before
+it reaches the model.
+
 **Verdict:** ______________________________________________
 
 Notes / chosen path: ______________________________________

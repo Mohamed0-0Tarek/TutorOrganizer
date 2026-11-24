@@ -15,6 +15,19 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 9 — AI assistant
+
+- [ ] With a real `GEMINI_API_KEY`: ask "مين عليه دفعات؟" → the answer matches Dues exactly.
+- [ ] Ask "قدّ إيه المحصّل الشهر ده؟" → matches Stats.
+- [ ] Two students with the same name → the assistant asks "أي أحمد؟" with candidate chips, no guess.
+- [ ] Request an action → a proposal card appears; nothing is saved until **تنفيذ** is tapped.
+- [ ] Confirm an attendance/payment proposal → the normal result sheet appears and counters update.
+- [ ] Duplicate the story of a student's phone number: no phone digits appear in the assistant payload or answer.
+- [ ] Caps: 1000-char question and 2 MB audio are rejected; the daily limit returns the calm limit message.
+- [ ] Voice: Android Chrome (`audio/webm;codecs=opus`) and iOS Safari (`audio/mp4`) — fill `docs/spikes.md`; the text fallback works where audio is rejected.
+- [ ] Offline: mic and send are disabled with the offline copy; 401/429/model errors render their own messages.
+- [ ] `AI_ENABLED=false` removes the assistant button (and the route still rejects unauthenticated calls).
+
 ## Stage 8 — statistics
 
 - [ ] Month stepper moves through Cairo months; months with no data show the honest empty state.
@@ -80,9 +93,9 @@ date and device.
 
 ## Stage 1 — domain core (no UI)
 
-- [ ] `npm test` → 79 passing.
+- [ ] `npm test` → 88 passing.
 - [ ] `npm run typecheck` → no errors.
-- [ ] `npm run test:emulator` → 17 passing (4 rules + 3 CRUD + 3 sessions + 4 attendance + 3 payments).
+- [ ] `npm run test:emulator` → 20 passing (4 rules + 3 CRUD + 3 sessions + 4 attendance + 3 payments + 3 AI route).
 
 ## Offline matrix (repeat at Stages 2, 5, 6, 10)
 
