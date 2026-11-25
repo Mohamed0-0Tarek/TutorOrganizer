@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { GoogleGenAI, type Content, type Part } from "@google/genai";
-import { getAdmin } from "@/data/firebase/admin";
+import { getAdmin, verifyTutorToken } from "@/data/firebase/admin";
 import {
   AssistantBodySchema,
   parseAssistantReply,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
   let uid: string;
   try {
-    uid = (await getAdmin().auth.verifyIdToken(token)).uid;
+    uid = (await verifyTutorToken(token)).uid;
   } catch (error) {
     // Log only the error class, never the token or student data.
     console.warn("ai_auth_error", (error as Error)?.name ?? "Error");
