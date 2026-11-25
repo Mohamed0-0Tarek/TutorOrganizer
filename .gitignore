@@ -46,3 +46,7 @@ next-env.d.ts
 *-debug.log
 firestore-debug.log
 ui-debug.log
+
+# generated service worker (built by `npm run build`)
+public/sw.js
+public/swe-worker-*.js

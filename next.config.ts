@@ -1,3 +1,4 @@
+import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -14,4 +15,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  // Turbopack dev doesn't support the plugin; the production build uses webpack.
+  disable: process.env.NODE_ENV !== "production",
+});
+
+export default withSerwist(nextConfig);

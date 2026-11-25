@@ -245,6 +245,9 @@ export default function SettingsPage() {
         <p className="mt-1 text-[12.5px] leading-5 text-muted">
           {t.settings.aboutBody}
         </p>
+        <p className="mt-2 text-[12px] leading-5 text-muted">
+          {t.settings.backupNote}
+        </p>
       </GlassCard>
 
       <Sheet

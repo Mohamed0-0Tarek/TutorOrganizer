@@ -25,8 +25,9 @@ Runtime: Node 24 (local), Next requires ≥ 20.9.
 ## Notes
 
 - `@types/node` was raised from 20 to 24 to satisfy Vitest 5's peer range.
-- Next 16 uses Turbopack for `dev` and `build`. `@serwist/next` needs a webpack build, so PWA wiring waits for Stage 10 (`next build --webpack`).
+- Next 16 uses Turbopack for `dev`, but `build` uses **webpack** so `@serwist/next` can generate `public/sw.js`. `postcss.config.mjs` + `@tailwindcss/postcss` provide Tailwind v4 for the webpack build.
 - `next.config.ts` deliberately omits `cacheComponents` / `partialPrefetching`: the authenticated app is client-rendered and must not be prerendered with stale data.
+- `GEMINI_MODEL=gemini-3.5-flash` is the working model for the current key; `gemini-2.5-flash` returned 404 and `gemini-flash-latest` returned 503.
 - `tsconfig.target` is **ES2020** (raised from the scaffold's ES2017) because `sessionId.ts` uses named regex capture groups.
 - **Firestore emulator requires JDK 21+.** `firebase-tools` rejects Java 17 with
   "no longer supports Java version before 21". Verified with Temurin 21 JRE

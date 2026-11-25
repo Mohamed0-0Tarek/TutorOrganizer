@@ -232,6 +232,8 @@ export const ar = {
     account: "الحساب",
     about: "عن التطبيق",
     aboutBody: "مدير المدرس — دفتر خصوصي لمدرس واحد.",
+    backupNote:
+      "بياناتك محفوظة في حسابك على Firebase — مسح المتصفح أو إعادة تثبيت التطبيق مش هيحذفها. تصدير كامل للبيانات في v1.1.",
     recomputeConfirmTitle: "تغيير طريقة الحساب؟",
     recomputeConfirmBody: "ده هيعيد حساب عدادات كل الطلاب. متأكد؟",
     saved: "اتحفظ",
@@ -310,6 +312,15 @@ export const ar = {
     confirmDeletePaymentTitle: "مسح الدفعة؟",
     confirmDeletePaymentBody: "الرصيد والعدادات هيرجعوا لما كانوا عليه قبل الدفعة.",
     invalidAmount: "المبلغ لازم رقم أكبر من صفر",
+  },
+  pwa: {
+    installTitle: "تثبيت التطبيق",
+    installBody: "ضيف «مدير المدرس» للشاشة الرئيسية عشان تفتحه بسرعة، حتى من غير إنترنت.",
+    install: "تثبيت",
+    later: "بعدين",
+    updateTitle: "نسخة جديدة",
+    updateBody: "اتعمل تحديث للتطبيق — حدّث عشان تستخدم أحدث نسخة.",
+    update: "تحديث",
   },
   ai: {
     title: "المساعد",

@@ -132,6 +132,9 @@ export async function saveLesson(
   persistCounters(batch, db, uid, input.source.students, after);
 
   await batch.commit();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("tm:lesson-saved"));
+  }
   return { countedStudents: roster.length, newlyDue };
 }
 

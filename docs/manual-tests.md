@@ -15,6 +15,16 @@ date and device.
 - [ ] No horizontal overflow at 360 px width; labels not clipped in Arabic.
 - [ ] `/dev` tools visible in development only.
 
+## Stage 10 — PWA install + release
+
+- [ ] `npm run build` (webpack) generates `public/sw.js`; `/manifest.webmanifest` has the Arabic name and 192/512/maskable icons.
+- [ ] Install from Chrome Android and Safari iOS; standalone launch has no browser chrome and respects safe areas.
+- [ ] Offline launch after one online visit: shell opens, `/offline` fallback shows for uncached navigations.
+- [ ] Deploy a second build → the "نسخة جديدة" toast appears → refresh runs the new build.
+- [ ] Install prompt appears only after the first saved lesson, and stays dismissed after "بعدين".
+- [ ] Lighthouse mobile: installable, performance ≥ 90, no console errors in production.
+- [ ] Settings shows the backup note; real-week trial (7 days) tracked in `docs/release-checklist.md`.
+
 ## Stage 9 — AI assistant
 
 - [ ] With a real `GEMINI_API_KEY`: ask "مين عليه دفعات؟" → the answer matches Dues exactly.

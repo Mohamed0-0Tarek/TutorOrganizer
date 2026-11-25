@@ -233,6 +233,8 @@ export const en: DictShape = {
     account: "Account",
     about: "About",
     aboutBody: "Tutor Manager — a private notebook for one tutor.",
+    backupNote:
+      "Your data lives in your Firebase account — clearing the browser or reinstalling won't delete it. Full export is planned for v1.1.",
     recomputeConfirmTitle: "Change calculation rules?",
     recomputeConfirmBody: "This recalculates every student's counters. Continue?",
     saved: "Saved",
@@ -311,6 +313,15 @@ export const en: DictShape = {
     confirmDeletePaymentTitle: "Delete this payment?",
     confirmDeletePaymentBody: "The balance and counters return to their previous values.",
     invalidAmount: "Amount must be a number above zero",
+  },
+  pwa: {
+    installTitle: "Install the app",
+    installBody: "Add Tutor Manager to your home screen for quick, offline-capable access.",
+    install: "Install",
+    later: "Later",
+    updateTitle: "New version",
+    updateBody: "An update is ready — refresh to use the latest version.",
+    update: "Refresh",
   },
   ai: {
     title: "Assistant",

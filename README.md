@@ -3,7 +3,7 @@
 Mobile-first, offline-first PWA for **one** private tutor (≈9–15 students, 4–7 groups): weekly schedule, fast attendance, per-student session counters, cash payments, dues, statistics and an AI assistant (text + voice).
 
 - **Stack:** Next.js 16 (App Router, TypeScript) · Tailwind CSS v4 · Firebase Auth + Firestore · Vercel · Gemini
-- **Status:** Stages 0–9 complete (Stage 2's shell/auth/provider work shipped with Stage 0; Stage 3 CRUD; Stage 4 schedule; Stage 5 attendance; Stage 6 payments; Stage 7 Today/settings; Stage 8 statistics; Stage 9 AI assistant, pending live-key + voice verification). See `~/.opencode/plan/tutor-manager-pwa-stages.md` for the full staged plan.
+- **Status:** Stages 0–10 implemented; awaiting Firebase Firestore API enablement, Vercel deploy and the real-week phone trial before tagging `v1.0`. See `~/.opencode/plan/tutor-manager-pwa-stages.md` for the full staged plan.
 - **Spec:** `masterPlan.md` (current), `Tutor Manager (مدير المدرس) — Complete Build Plan.md` (superseded Flutter spec, kept for screen details).
 
 ## Setup
@@ -47,7 +47,7 @@ Server-only keys in `.env.local`:
 ```bash
 FIREBASE_SERVICE_ACCOUNT=<base64 service-account JSON>
 GEMINI_API_KEY=<key>
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash
 AI_DAILY_LIMIT=100
 AI_ENABLED=true              # false hides the assistant button
 ```
@@ -101,14 +101,19 @@ Rules that must not break:
 
 `TutorDataProvider` subscribes to six tiny collections (settings, groups, students, sessions, attendance, payments). Firestore's IndexedDB cache hydrates the app on reload and queues batched writes while offline; the UI renders computed balances (not cached counters), so it is correct instantly. Cached counters are reconciled on ready/reconnect.
 
-### Next 16 note
+### Next 16 + PWA note
 
-Next 16 builds with Turbopack by default, while `@serwist/next` injects a webpack config. The PWA service worker wiring is therefore scheduled for Stage 10 with `next build --webpack` (or a hand-rolled service worker). No service worker is active yet.
+Next 16 builds with Turbopack by default, but `@serwist/next` needs webpack.
+`npm run build` therefore uses `next build --webpack`, and `postcss.config.mjs`
+keeps Tailwind v4 working in webpack builds. The service worker is generated at
+`public/sw.js`, precaches the app shell and `/offline`, and keeps `/api/*` and
+Firebase endpoints network-only. Dev stays on Turbopack with Serwist disabled.
 
 ## Docs
 
 - `docs/versions.md` — pinned versions, environment notes (JDK 21 for emulators)
 - `docs/spikes.md` — offline + Gemini-audio verification checklists
 - `docs/manual-tests.md` — device test checklist
+- `docs/release-checklist.md` — Firebase/Vercel deploy + real-week trial steps
 - `scripts/gemini-audio-probe.mjs` — one-shot MIME probe for Spike B
 - `/dev` and `/dev/style` — development-only seed tools and the design gallery

@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
     let finalText = "";
 
     // Up to 2 tool rounds, then the model must produce the final JSON answer.
