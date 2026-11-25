@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     uid = (await getAdmin().auth.verifyIdToken(token)).uid;
   } catch (error) {
     // Log only the error class, never the token or student data.
-    console.warn("ai_auth_error", (error as Error)?.name, (error as Error)?.message);
+    console.warn("ai_auth_error", (error as Error)?.name ?? "Error");
     return NextResponse.json({ error: "authRequired" }, { status: 401 });
   }
 
@@ -64,22 +64,35 @@ export async function POST(request: NextRequest) {
 
   // 3) Daily cap, per tutor and Cairo day.
   const limit = Math.max(1, Number(process.env.AI_DAILY_LIMIT ?? 100) || 100);
-  const usageRef = getAdmin().db.doc(`users/${uid}/meta/aiUsage`);
-  const usage = await usageRef.get();
-  const usageData = usage.data() as { dateKey?: string; count?: number } | undefined;
-  const count =
-    usageData?.dateKey === body.clientToday ? Number(usageData?.count ?? 0) : 0;
-  if (count >= limit) {
-    return NextResponse.json({ error: "limitReached" }, { status: 429 });
+  let count = 0;
+  try {
+    const usageRef = getAdmin().db.doc(`users/${uid}/meta/aiUsage`);
+    const usage = await usageRef.get();
+    const usageData = usage.data() as
+      | { dateKey?: string; count?: number }
+      | undefined;
+    count =
+      usageData?.dateKey === body.clientToday ? Number(usageData?.count ?? 0) : 0;
+    if (count >= limit) {
+      return NextResponse.json({ error: "limitReached" }, { status: 429 });
+    }
+    await usageRef.set(
+      {
+        dateKey: body.clientToday,
+        count: count + 1,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    // A missing/misconfigured service account or Firestore outage surfaces here.
+    console.warn(
+      "ai_usage_error",
+      (error as Error)?.name ?? "Error",
+      String((error as { code?: string })?.code ?? ""),
+    );
+    return NextResponse.json({ error: "usageError" }, { status: 503 });
   }
-  await usageRef.set(
-    {
-      dateKey: body.clientToday,
-      count: count + 1,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
 
   if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "aiUnconfigured" }, { status: 503 });

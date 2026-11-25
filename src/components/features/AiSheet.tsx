@@ -66,10 +66,11 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
   function mapError(status: number, code?: string): string {
     if (status === 401) return "auth";
     if (status === 429) return "limit";
-    if (status === 422) return "audio";
-    if (status === 503 || status === 502) return "model";
+    if (status === 422 || code === "audioUnsupported") return "audio";
     if (code === "invalidRequest") return "generic";
-    return "network";
+    // 500/502/503/504 (including a Vercel function error) are server-side,
+    // not "no connection" — only a thrown fetch is a network failure.
+    return "model";
   }
 
   async function ask(text: string, audio?: { base64: string; mimeType: string }) {
