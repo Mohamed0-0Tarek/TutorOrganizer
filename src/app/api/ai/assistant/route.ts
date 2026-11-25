@@ -122,12 +122,17 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      contents.push({
-        role: "model",
-        parts: calls.map((call) => ({
-          functionCall: { name: call.name ?? "", args: call.args ?? {} },
-        })),
-      });
+      // Keep the model's raw parts: Gemini 3.x requires the thought_signature
+      // attached to each functionCall part when replaying the tool round.
+      const modelContent = response.candidates?.[0]?.content;
+      contents.push(
+        modelContent ?? {
+          role: "model",
+          parts: calls.map((call) => ({
+            functionCall: { name: call.name ?? "", args: call.args ?? {} },
+          })),
+        },
+      );
 
       const outcomes: Array<{ name: string; output: unknown }> = [];
       for (const call of calls) {
@@ -158,7 +163,7 @@ export async function POST(request: NextRequest) {
       }
 
       contents.push({
-        role: "function",
+        role: "user",
         parts: outcomes.map((outcome) => ({
           functionResponse: {
             name: outcome.name,

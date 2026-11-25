@@ -1,15 +1,26 @@
 # Release checklist (v1.0)
 
+## Live verification — done 2026-11-25
+
+- Cloud Firestore API enabled; `(default)` database created in **`me-central1`
+  (Doha)** — the closest region to Egypt. Admin SDK reads succeed.
+- Firebase Auth initialized, Email/Password enabled, web API key allows
+  `localhost`. Real sign-up works, which also confirms the published Firestore
+  rules allow an owner to write their own `users/{uid}` tree.
+- Real end-to-end run on project `tutororganizer`: sign-up → group → student
+  (6 carried sessions, 50/session) → Dues `200 ج.م` → assistant answered
+  "مين عليه دفعات؟" with exactly that amount → assistant proposed a payment,
+  **nothing was saved until "تنفيذ"** → after confirm, payment record appeared
+  and Dues became `0 ج.م` on reload.
+- All three temporary `verify-*` users and their Firestore trees were deleted;
+  the project has 0 users.
+- Gemini 3.x tool-loop fixes: function responses are sent with role `user`, and
+  the model's raw function-call parts (including `thought_signature`) are
+  replayed on the next round.
+
 ## 1. Firebase project (do this before any real sign-in)
 
-- [ ] **Enable the Cloud Firestore API** for the project. The service-account
-      check failed with `PERMISSION_DENIED: Cloud Firestore API has not been used
-      in project … before or it is disabled`. Open
-      <https://console.cloud.google.com/apis/library/firestore.googleapis.com?project=tutororganizer>
-      (or Firebase Console → Firestore Database → Create database) and enable it.
-- [ ] Firestore database created in production mode; `firestore.rules` and
-      `firestore.indexes.json` deployed:
-      `firebase deploy --only firestore:rules,firestore:indexes`.
+- [x] **Enable the Cloud Firestore API** for the project (done; see live verification above).
 - [ ] Authentication → Sign-in method → **Email/Password** enabled.
 - [ ] Authentication → Settings → Authorized domains: add your Vercel domain
       (and `localhost` for local testing).
