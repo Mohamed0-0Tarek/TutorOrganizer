@@ -16,6 +16,29 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+/**
+ * Config probe: booleans only, no secret values. Useful when a deployment
+ * succeeds but the AI route returns 500 — it tells us which env var is missing.
+ */
+export async function GET() {
+  let firestore = "unknown";
+  try {
+    await getAdmin().db.doc("users/healthcheck-probe").get();
+    firestore = "ok";
+  } catch (error) {
+    firestore = String((error as { code?: string })?.code ?? (error as Error)?.name ?? "error");
+  }
+
+  return NextResponse.json({
+    geminiKey: Boolean(process.env.GEMINI_API_KEY),
+    serviceAccount: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT),
+    model: process.env.GEMINI_MODEL ?? null,
+    dailyLimit: process.env.AI_DAILY_LIMIT ?? null,
+    enabled: process.env.AI_ENABLED !== "false",
+    firestore,
+  });
+}
+
 function systemInstruction(locale: "ar" | "en"): string {
   const arabic = `
 أنت مساعد مدير مدرس خاص. أجب بالعربية المصرية الواضحة والمختصرة.
