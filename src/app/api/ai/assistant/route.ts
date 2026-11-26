@@ -1,14 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { GoogleGenAI, type Content, type Part } from "@google/genai";
 import { getAdmin, verifyTutorToken } from "@/data/firebase/admin";
 import {
   AssistantBodySchema,
-  parseAssistantReply,
+  type AssistantReply,
 } from "@/data/ai/schema";
 import {
-  AI_TOOLS,
+  runGemini,
+  runGroq,
+  systemInstruction,
+  type RunInput,
+} from "@/data/ai/providers";
+import {
   ClarificationNeeded,
-  executeTool,
+  loadState,
   type ToolContext,
 } from "@/data/ai/tools";
 
@@ -16,48 +20,33 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-/**
- * Config probe: booleans only, no secret values. Useful when a deployment
- * succeeds but the AI route returns 500 — it tells us which env var is missing.
- */
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+const FALLBACK_GEMINI = PRIMARY_MODEL.includes("lite")
+  ? "gemini-3.5-flash"
+  : "gemini-3.5-flash-lite";
+
+/** Config probe: booleans only, no secret values. */
 export async function GET() {
   let firestore = "unknown";
   try {
     await getAdmin().db.doc("users/healthcheck-probe").get();
     firestore = "ok";
   } catch (error) {
-    firestore = String((error as { code?: string })?.code ?? (error as Error)?.name ?? "error");
+    firestore = String(
+      (error as { code?: string })?.code ?? (error as Error)?.name ?? "error",
+    );
   }
 
   return NextResponse.json({
     geminiKey: Boolean(process.env.GEMINI_API_KEY),
+    groqKey: Boolean(process.env.GROQ_API_KEY),
     serviceAccount: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT),
-    model: process.env.GEMINI_MODEL ?? null,
+    model: PRIMARY_MODEL,
+    groqModel: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
     dailyLimit: process.env.AI_DAILY_LIMIT ?? null,
     enabled: process.env.AI_ENABLED !== "false",
     firestore,
   });
-}
-
-function systemInstruction(locale: "ar" | "en"): string {
-  const arabic = `
-أنت مساعد مدير مدرس خاص. أجب بالعربية المصرية الواضحة والمختصرة.
-قواعد لا تخرقها:
-1) كل رقم في إجابتك يجب أن يأتي من نتيجة أداة (tool) — لا تخمن أبدًا.
-2) إذا سُئلت عن مبلغ أو طالب أو حصة، استدعِ الأداة المناسبة أولًا.
-3) لا تنفّذ أي تعديل بنفسك. استخدم أدوات propose_* فقط لإرجاع مقترح، ثم يؤكد المستخدم في الواجهة.
-4) إذا كان الاسم مكررًا أو غير واضح، اطلب التوضيح ولا تختر طالبًا.
-5) لا تذكر أرقام تليفونات، ولا تدّعي أنك حفظت شيئًا.
-6) أرجع القيمة بصيغة JSON فقط: {"answer":"...", "proposals":[{"type":"...","params":{...}}]}.
-7) إذا لم تكن هناك مقترحات، أرجع proposals كقائمة فارغة أو احذفها.
-`;
-  const english = `
-You are a private tutor's assistant. Answer briefly in English.
-Every number must come from a tool result — never guess. Use propose_* tools for
-actions; never claim something was saved. Ask for clarification on ambiguous names.
-Reply with JSON only: {"answer":"...", "proposals":[]}.
-`;
-  return locale === "ar" ? arabic : english;
 }
 
 export async function POST(request: NextRequest) {
@@ -73,13 +62,14 @@ export async function POST(request: NextRequest) {
   try {
     uid = (await verifyTutorToken(token)).uid;
   } catch (error) {
-    // Log only the error class, never the token or student data.
     console.warn("ai_auth_error", (error as Error)?.name ?? "Error");
     return NextResponse.json({ error: "authRequired" }, { status: 401 });
   }
 
   // 2) Validate body.
-  const parsedBody = AssistantBodySchema.safeParse(await request.json().catch(() => null));
+  const parsedBody = AssistantBodySchema.safeParse(
+    await request.json().catch(() => null),
+  );
   if (!parsedBody.success) {
     return NextResponse.json({ error: "invalidRequest" }, { status: 400 });
   }
@@ -87,15 +77,16 @@ export async function POST(request: NextRequest) {
 
   // 3) Daily cap, per tutor and Cairo day.
   const limit = Math.max(1, Number(process.env.AI_DAILY_LIMIT ?? 100) || 100);
-  let count = 0;
   try {
     const usageRef = getAdmin().db.doc(`users/${uid}/meta/aiUsage`);
     const usage = await usageRef.get();
     const usageData = usage.data() as
       | { dateKey?: string; count?: number }
       | undefined;
-    count =
-      usageData?.dateKey === body.clientToday ? Number(usageData?.count ?? 0) : 0;
+    const count =
+      usageData?.dateKey === body.clientToday
+        ? Number(usageData?.count ?? 0)
+        : 0;
     if (count >= limit) {
       return NextResponse.json({ error: "limitReached" }, { status: 429 });
     }
@@ -108,7 +99,6 @@ export async function POST(request: NextRequest) {
       { merge: true },
     );
   } catch (error) {
-    // A missing/misconfigured service account or Firestore outage surfaces here.
     console.warn(
       "ai_usage_error",
       (error as Error)?.name ?? "Error",
@@ -117,106 +107,59 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "usageError" }, { status: 503 });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
     return NextResponse.json({ error: "aiUnconfigured" }, { status: 503 });
   }
 
-  const ctx: ToolContext = { uid, clientToday: body.clientToday };
-  const parts: Part[] = [];
-  if (body.text) parts.push({ text: body.text });
-  if (body.audio) {
-    parts.push({
-      inlineData: {
-        mimeType: body.audio.mimeType,
-        data: body.audio.base64,
-      },
-    });
-  }
-  const contents: Content[] = [{ role: "user", parts }];
-
+  // 4) One hydrated snapshot for every tool call in this request.
+  let state;
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-    let finalText = "";
-
-    // Up to 2 tool rounds, then the model must produce the final JSON answer.
-    for (let round = 0; round < 3; round += 1) {
-      const response = await ai.models.generateContent({
-        model,
-        contents,
-        config: {
-          systemInstruction: systemInstruction(body.locale),
-          tools: [{ functionDeclarations: AI_TOOLS }],
-          temperature: 0.1,
-          maxOutputTokens: 2048,
-        },
-      });
-
-      const calls = response.functionCalls ?? [];
-      if (calls.length === 0) {
-        finalText = response.text ?? "";
-        break;
-      }
-
-      // Keep the model's raw parts: Gemini 3.x requires the thought_signature
-      // attached to each functionCall part when replaying the tool round.
-      const modelContent = response.candidates?.[0]?.content;
-      contents.push(
-        modelContent ?? {
-          role: "model",
-          parts: calls.map((call) => ({
-            functionCall: { name: call.name ?? "", args: call.args ?? {} },
-          })),
-        },
-      );
-
-      const outcomes: Array<{ name: string; output: unknown }> = [];
-      for (const call of calls) {
-        try {
-          const output = await executeTool(
-            call.name ?? "",
-            (call.args ?? {}) as Record<string, unknown>,
-            ctx,
-          );
-          outcomes.push({ name: call.name ?? "", output });
-        } catch (error) {
-          if (error instanceof ClarificationNeeded) {
-            return NextResponse.json({
-              answer:
-                body.locale === "ar"
-                  ? "أي طالب تقصد؟"
-                  : "Which student do you mean?",
-              needsClarification: { candidates: error.candidates },
-            });
-          }
-          // Log only the tool name and error type — never student data.
-          console.warn("ai_tool_error", call.name, (error as Error)?.name ?? "Error");
-          outcomes.push({
-            name: call.name ?? "",
-            output: { error: (error as Error)?.message ?? "TOOL_ERROR" },
-          });
-        }
-      }
-
-      contents.push({
-        role: "user",
-        parts: outcomes.map((outcome) => ({
-          functionResponse: {
-            name: outcome.name,
-            response: { output: outcome.output },
-          },
-        })),
-      });
-    }
-
-    return NextResponse.json(parseAssistantReply(finalText, body.locale));
+    state = await loadState(uid);
   } catch (error) {
-    // Only error class / status are logged, never prompts or student data.
-    console.warn("ai_model_error", (error as Error)?.name ?? "Error");
-    const message = String((error as Error)?.message ?? "").toLowerCase();
-    if (body.audio && /mime|format|unsupported|decode|audio/.test(message)) {
-      return NextResponse.json({ error: "audioUnsupported" }, { status: 422 });
+    console.warn("ai_state_error", (error as Error)?.name ?? "Error");
+    return NextResponse.json({ error: "usageError" }, { status: 503 });
+  }
+
+  const ctx: ToolContext = { uid, clientToday: body.clientToday };
+  const input: RunInput = {
+    locale: body.locale,
+    ...(body.text ? { text: body.text } : {}),
+    ...(body.audio ? { audio: body.audio } : {}),
+    ctx,
+    state,
+    system: systemInstruction(body.locale),
+  };
+
+  // 5) Provider ladder: fast Gemini → other Gemini → Groq (text only).
+  const attempts: Array<() => Promise<AssistantReply>> = [];
+  if (process.env.GEMINI_API_KEY) {
+    attempts.push(() => runGemini(input, PRIMARY_MODEL));
+    attempts.push(() => runGemini(input, FALLBACK_GEMINI));
+  }
+  if (process.env.GROQ_API_KEY && (body.text || !body.audio)) {
+    attempts.push(() => runGroq(input));
+  }
+
+  let reply: AssistantReply | null = null;
+  for (const attempt of attempts) {
+    try {
+      reply = await attempt();
+      break;
+    } catch (error) {
+      if (error instanceof ClarificationNeeded) {
+        return NextResponse.json({
+          answer:
+            body.locale === "ar" ? "أي طالب تقصد؟" : "Which student do you mean?",
+          needsClarification: { candidates: error.candidates },
+        });
+      }
+      // Log only the error class — never prompts, tokens or student data.
+      console.warn("ai_provider_error", (error as Error)?.name ?? "Error");
     }
+  }
+
+  if (!reply) {
     return NextResponse.json({ error: "modelError" }, { status: 502 });
   }
+  return NextResponse.json(reply);
 }

@@ -47,16 +47,23 @@ Server-only keys in `.env.local`:
 ```bash
 FIREBASE_SERVICE_ACCOUNT=<base64 service-account JSON>
 GEMINI_API_KEY=<key>
-GEMINI_MODEL=gemini-3.5-flash
+GEMINI_MODEL=gemini-3.5-flash-lite   # fast free model (larger free quota)
 AI_DAILY_LIMIT=100
 AI_ENABLED=true              # false hides the assistant button
+
+# Optional text-only fallback — leave empty to disable
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
 ```
 
 The route is `POST /api/ai/assistant`. It verifies a Firebase ID token, enforces
 a per-tutor daily cap, answers only from read tools, and returns **proposals**
 that the UI applies only after you confirm. Voice uses direct inline audio where
 Gemini accepts the MIME type, and falls back to `ar-EG` Web Speech → text
-otherwise; see `docs/spikes.md` for the Spike B verdict table.
+otherwise; see `docs/spikes.md` for the Spike B verdict table. Provider ladder:
+Gemini primary → the other Gemini model → Groq (text only, when `GROQ_API_KEY`
+is set). The hydrated Firestore state is loaded once per request and shared by
+all tool calls.
 
 `NEXT_PUBLIC_USE_EMULATORS=1` also disables IndexedDB persistence (emulator data is ephemeral, and stale cache there causes confusing bugs). Offline behaviour is verified against a real project, not the emulator.
 

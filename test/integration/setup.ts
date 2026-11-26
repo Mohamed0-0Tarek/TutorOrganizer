@@ -13,5 +13,5 @@ process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:123456789:web:emulator";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.GEMINI_API_KEY = "fake-test-key";
-process.env.GEMINI_MODEL = "gemini-3.5-flash";
+process.env.GEMINI_MODEL = "gemini-3.5-flash-lite";
 process.env.AI_DAILY_LIMIT = "5";

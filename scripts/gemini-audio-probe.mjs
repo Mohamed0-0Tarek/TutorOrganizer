@@ -45,7 +45,7 @@ async function main() {
     process.exit(2);
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
   const data = readFileSync(file).toString("base64");
 
   const body = {

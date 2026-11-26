@@ -50,7 +50,7 @@ export interface ToolContext {
   clientToday: DateKey;
 }
 
-interface State {
+export interface State {
   settings: TutorSettings;
   groups: Group[];
   students: Student[];
@@ -61,7 +61,7 @@ interface State {
   balances: Map<string, StudentBalance>;
 }
 
-async function loadState(uid: string): Promise<State> {
+export async function loadState(uid: string): Promise<State> {
   const { db } = getAdmin();
   const [user, groups, students, sessions, attendance, payments] =
     await Promise.all([
@@ -353,8 +353,11 @@ export async function executeTool(
   name: string,
   args: Record<string, unknown>,
   ctx: ToolContext,
+  preloaded?: State,
 ): Promise<unknown> {
-  const state = await loadState(ctx.uid);
+  // One hydrated snapshot per request: a question that calls three tools must
+  // not re-read six Firestore collections three times.
+  const state = preloaded ?? (await loadState(ctx.uid));
   return redactStrings(await execute(name, args, ctx, state));
 }
 
