@@ -17,6 +17,12 @@
 - Gemini 3.x tool-loop fixes: function responses are sent with role `user`, and
   the model's raw function-call parts (including `thought_signature`) are
   replayed on the next round.
+- Speed/quota pass (2026-11-26): `GEMINI_MODEL=gemini-3.5-flash-lite` is primary
+  (~15 RPM / 500 RPD free vs 5/20 on Flash), alternate Gemini is fallback, and
+  hydrated Firestore state is loaded **once per request**. A live question with
+  a due student answered `200` in ~10 s (was 19–46 s). Groq is an optional
+  text-only fallback: add `GROQ_API_KEY` + `GROQ_MODEL=openai/gpt-oss-120b` on
+  Vercel to enable it (30 RPM / 1,000 RPD free).
 
 ## 1. Firebase project (do this before any real sign-in)
 
