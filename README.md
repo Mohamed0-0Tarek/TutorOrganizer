@@ -119,6 +119,7 @@ Firebase endpoints network-only. Dev stays on Turbopack with Serwist disabled.
 ## Docs
 
 - `docs/PROJECT_GUIDE.md` — **الدليل الشامل**: كل طبقة وكل ملف وإزاي بيشتغل
+- `docs/CODEBASE_SNAPSHOT.md` — هيكل المشروع + الكود الكامل لكل ملف في ملف واحد (للـ coding agent)
 - `docs/versions.md` — pinned versions, environment notes (JDK 21 for emulators)
 - `docs/spikes.md` — offline + Gemini-audio verification checklists
 - `docs/manual-tests.md` — device test checklist
