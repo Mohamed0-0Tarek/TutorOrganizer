@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Send, SquarePen } from "lucide-react";
 import { ConfirmCard } from "@/components/ui/ConfirmCard";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -12,6 +12,7 @@ import { saveLesson } from "@/data/services/attendanceService";
 import { recordPayment } from "@/data/services/paymentService";
 import { cancelSession } from "@/data/services/sessionService";
 import { todayKey } from "@/domain/dateKey";
+import { formatMoney } from "@/domain/money";
 import { format } from "@/i18n";
 import { useI18n } from "@/i18n/I18nProvider";
 
@@ -26,6 +27,8 @@ interface SpeechLike {
   onerror: (() => void) | null;
   onend: (() => void) | null;
   start: () => void;
+  stop?: () => void;
+  abort?: () => void;
 }
 
 function toBase64(buffer: ArrayBuffer): string {
@@ -60,6 +63,57 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
   const [editing, setEditing] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [result, setResult] = useState<string | null>(null);
+
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<SpeechLike | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const stopTimerRef = useRef<number | null>(null);
+  const activeRef = useRef(open);
+
+  /** `submit` keeps the recorder's onstop handler (audio is sent); cleanup detaches it. */
+  const teardownAudio = useCallback((submit: boolean) => {
+    if (stopTimerRef.current !== null) {
+      window.clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      if (submit) {
+        // Keep onresult/onend so the final transcript still lands in the input.
+        recognition.stop?.();
+      } else {
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        if (recognition.abort) recognition.abort();
+        else recognition.stop?.();
+      }
+      recognitionRef.current = null;
+    }
+    const recorder = recorderRef.current;
+    if (recorder) {
+      if (!submit) recorder.onstop = null;
+      if (recorder.state !== "inactive") recorder.stop();
+      recorderRef.current = null;
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
+
+  const stopRecording = useCallback(
+    (submit: boolean) => {
+      teardownAudio(submit);
+      setListening(false);
+    },
+    [teardownAudio],
+  );
+
+  useEffect(() => {
+    activeRef.current = open;
+    if (!open) teardownAudio(false);
+  }, [open, teardownAudio]);
+
+  useEffect(() => () => teardownAudio(false), [teardownAudio]);
 
   const source = { students, sessionsById, attendance, payments, settings };
 
@@ -140,10 +194,18 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
       recognition.interimResults = false;
       recognition.onresult = (event) => {
         setInput(event.results[0][0].transcript);
+        recognitionRef.current = null;
         setListening(false);
       };
-      recognition.onerror = () => setListening(false);
-      recognition.onend = () => setListening(false);
+      recognition.onerror = () => {
+        recognitionRef.current = null;
+        setListening(false);
+      };
+      recognition.onend = () => {
+        recognitionRef.current = null;
+        setListening(false);
+      };
+      recognitionRef.current = recognition;
       recognition.start();
       setListening(true);
       return;
@@ -156,6 +218,11 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
           return;
         }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!activeRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
         const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find(
           (candidate) => MediaRecorder.isTypeSupported(candidate),
         );
@@ -166,24 +233,38 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
         const chunks: Blob[] = [];
         recorder.ondataavailable = (event) => chunks.push(event.data);
         recorder.onstop = () => {
+          if (stopTimerRef.current !== null) {
+            window.clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
+          }
           const blob = new Blob(chunks, { type: recorder.mimeType || mime || "audio/webm" });
           void blob.arrayBuffer().then((buffer) => {
             void ask("", { base64: toBase64(buffer), mimeType: blob.type });
           });
           stream.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+          recorderRef.current = null;
           setListening(false);
         };
+        recorderRef.current = recorder;
         recorder.start();
         setListening(true);
-        window.setTimeout(() => recorder.stop(), 3000);
+        stopTimerRef.current = window.setTimeout(() => {
+          stopTimerRef.current = null;
+          if (recorder.state !== "inactive") recorder.stop();
+        }, 15_000);
       } catch {
-        setListening(false);
+        stopRecording(false);
         setErrorKey("audio");
       }
     })();
   }
 
-  async function runProposal(proposal: Proposal, params: Record<string, unknown>) {
+  async function runProposal(
+    proposal: Proposal,
+    params: Record<string, unknown>,
+    proposalIndex: number,
+  ) {
     if (!uid) return;
     setBusy(true);
     setErrorKey(null);
@@ -229,12 +310,77 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
         );
         setResult(t.dues.copied);
       }
-      setProposals((current) => current.filter((_, index) => index !== editing));
+      setProposals((current) =>
+        current.filter((_, index) => index !== proposalIndex),
+      );
       setEditing(null);
     } catch {
       setErrorKey("generic");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function describeProposal(proposal: Proposal): { title: string; summary: string } {
+    const labels: Record<string, string> = {
+      attendance: t.ai.proposalTypes.attendance,
+      payment: t.ai.proposalTypes.payment,
+      cancelSession: t.ai.proposalTypes.cancelSession,
+      reminder: t.ai.proposalTypes.reminder,
+    };
+    const title = labels[proposal.type] ?? t.ai.proposalTitle;
+    const params = proposal.params;
+
+    switch (proposal.type) {
+      case "attendance": {
+        const session = sessionsById.get(String(params.sessionId ?? ""));
+        const absent = Array.isArray(params.absentIds) ? params.absentIds.length : 0;
+        return {
+          title,
+          summary: format(t.ai.proposalSummary.attendance, {
+            date: session?.dateKey ?? String(params.dateKey ?? ""),
+            n: absent,
+          }),
+        };
+      }
+      case "payment": {
+        const student = students.find((item) => item.id === params.studentId);
+        const amount = Number(params.amount);
+        // formatMoney asserts an integer — never let a malformed/edited param throw in render.
+        const amountText = Number.isInteger(amount)
+          ? formatMoney(amount, settings.currencyLabel || t.common.currency)
+          : String(params.amount ?? "");
+        const covered = Number(params.sessionsCovered ?? settings.cycleLength);
+        return {
+          title,
+          summary: format(t.ai.proposalSummary.payment, {
+            name: student?.name ?? "—",
+            amount: amountText,
+            n: Number.isInteger(covered) ? covered : 0,
+          }),
+        };
+      }
+      case "cancelSession": {
+        const session = sessionsById.get(String(params.sessionId ?? ""));
+        return {
+          title,
+          summary: format(t.ai.proposalSummary.cancelSession, {
+            group: session?.groupName ?? "—",
+            date: session?.dateKey ?? "",
+          }),
+        };
+      }
+      case "reminder": {
+        const student = students.find((item) => item.id === params.studentId);
+        return {
+          title,
+          summary: format(t.ai.proposalSummary.reminder, {
+            name: student?.name ?? "—",
+          }),
+        };
+      }
+      default:
+        return { title, summary: "" };
     }
   }
 
@@ -246,7 +392,15 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
   ];
 
   return (
-    <Sheet open={open} onClose={onClose} title={t.ai.title}>
+    <Sheet
+      open={open}
+      onClose={() => {
+        teardownAudio(false);
+        setListening(false);
+        onClose();
+      }}
+      title={t.ai.title}
+    >
       <div className="flex flex-col gap-3">
         <p className="text-[12.5px] text-muted">{t.ai.subtitle}</p>
 
@@ -296,11 +450,13 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
             </GlassCard>
           ) : null}
 
-          {proposals.map((proposal, index) => (
+          {proposals.map((proposal, index) => {
+            const description = describeProposal(proposal);
+            return (
             <GlassCard key={index} className="self-start p-3">
-              <p className="mb-1 text-[13px] font-semibold">{t.ai.proposalTitle}</p>
-              <p className="mb-2 text-[12px] text-muted">{t.ai.proposalExplain}</p>
-              <p dir="ltr" className="mb-2 text-[12px]">{proposal.type}</p>
+              <p className="mb-1 text-[13px] font-semibold">{description.title}</p>
+              <p className="mb-2 text-[12px] text-muted">{description.summary}</p>
+              <p className="mb-2 text-[11px] text-muted">{t.ai.proposalExplain}</p>
               {editing === index ? (
                 <div className="flex flex-col gap-2">
                   <textarea
@@ -333,7 +489,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
                 </div>
               ) : (
                 <ConfirmCard
-                  title={proposal.type}
+                  title={description.title}
                   confirmLabel={t.ai.confirm}
                   cancelLabel={t.ai.cancel}
                   tone="primary"
@@ -341,7 +497,9 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
                   onCancel={() =>
                     setProposals((current) => current.filter((_, i) => i !== index))
                   }
-                  onConfirm={() => void runProposal(proposal, proposal.params)}
+                  onConfirm={() =>
+                    void runProposal(proposal, proposal.params, index)
+                  }
                 />
               )}
               {editing !== index ? (
@@ -358,7 +516,8 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
                 </button>
               ) : null}
             </GlassCard>
-          ))}
+            );
+          })}
         </div>
 
         {busy ? (
@@ -401,7 +560,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
             type="button"
             aria-label={t.ai.mic}
             disabled={!online || busy}
-            onClick={startSpeech}
+            onClick={() => (listening ? stopRecording(true) : startSpeech())}
             className={`press flex h-11 w-11 shrink-0 items-center justify-center rounded-btn ${
               listening ? "bg-danger text-white" : "bg-white/60 text-primary"
             } disabled:opacity-50`}

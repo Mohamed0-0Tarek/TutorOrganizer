@@ -337,6 +337,18 @@ export const ar = {
     suggestion4: "قدّ إيه المحصّل الشهر ده؟",
     proposalTitle: "اقتراح قبل التنفيذ",
     proposalExplain: "مفيش حاجة هتتحفظ لو ما أكّدتش.",
+    proposalTypes: {
+      attendance: "تسجيل حضور",
+      payment: "تسجيل دفعة",
+      cancelSession: "إلغاء حصة",
+      reminder: "رسالة تذكير",
+    },
+    proposalSummary: {
+      attendance: "حصة {date} — غياب {n} طالب",
+      payment: "{name} — {amount} مقابل {n} حصة",
+      cancelSession: "إلغاء حصة {group} بتاريخ {date}",
+      reminder: "رسالة تذكير لـ {name}",
+    },
     confirm: "تنفيذ",
     edit: "تعديل",
     cancel: "إلغاء",

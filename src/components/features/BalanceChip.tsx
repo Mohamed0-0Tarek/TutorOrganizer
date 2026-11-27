@@ -10,17 +10,19 @@ export function BalanceChip({
   balance,
   t,
   cycleLength,
+  currencyLabel,
 }: {
   balance: StudentBalance;
   t: Dict;
   cycleLength: number;
+  currencyLabel?: string;
 }) {
   switch (balance.state) {
     case "DUE":
       return (
         <StatusChip tone="danger" icon={<AlertCircle size={12} aria-hidden />}>
           {format(t.students.amountDueChip, {
-            amount: formatMoney(balance.amountDue, t.common.currency),
+            amount: formatMoney(balance.amountDue, currencyLabel || t.common.currency),
           })}
         </StatusChip>
       );

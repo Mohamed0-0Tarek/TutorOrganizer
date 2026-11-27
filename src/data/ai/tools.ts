@@ -17,7 +17,7 @@ import {
 } from "@/data/mappers";
 import { needsReminder, computeStudentBalance } from "@/domain/balanceCalculator";
 import { computeCounters } from "@/domain/counters";
-import { expectedCycleAmount } from "@/domain/money";
+import { expectedCycleAmount, formatMoney } from "@/domain/money";
 import { computeGroupStatus } from "@/domain/groupPosition";
 import {
   collectedInMonth,
@@ -257,6 +257,11 @@ async function execute(
     }
 
     case "get_today_overview": {
+      const activeIds = new Set(
+        state.students
+          .filter((student) => student.active)
+          .map((student) => student.id),
+      );
       const sessions = [...state.sessionsById.values()]
         .filter((session) => session.dateKey === ctx.clientToday)
         .sort((a, b) => a.time.localeCompare(b.time))
@@ -265,22 +270,36 @@ async function execute(
           time: session.time,
           groupName: session.groupName,
           status: session.status,
+          roster: state.students
+            .filter(
+              (student) =>
+                student.active &&
+                student.groupId === session.groupId &&
+                student.startedAtKey <= session.dateKey,
+            )
+            .map((student) => ({ id: student.id, name: student.name })),
         }));
       return {
         dateKey: ctx.clientToday,
         sessions,
-        dueTotal: [...state.balances.values()].reduce(
-          (sum, balance) => sum + Math.max(0, balance.amountDue),
+        // Only active students, matching get_dues and the /dues screen.
+        dueTotal: [...state.balances.entries()].reduce(
+          (sum, [studentId, balance]) =>
+            activeIds.has(studentId)
+              ? sum + Math.max(0, balance.amountDue)
+              : sum,
           0,
         ),
-        reminderCount: state.students.filter((student) =>
-          needsReminder(
-            {
-              counted: state.counters.get(student.id)?.counted ?? 0,
-              state: state.balances.get(student.id)?.state ?? "SETTLED",
-            },
-            state.settings.cycleLength,
-          ),
+        reminderCount: state.students.filter(
+          (student) =>
+            student.active &&
+            needsReminder(
+              {
+                counted: state.counters.get(student.id)?.counted ?? 0,
+                state: state.balances.get(student.id)?.state ?? "SETTLED",
+              },
+              state.settings.cycleLength,
+            ),
         ).length,
       };
     }
@@ -340,7 +359,11 @@ async function execute(
     case "draft_parent_reminder": {
       const student = resolveStudent(state, args.studentName ?? args.studentId);
       const balance = state.balances.get(student.id);
-      const text = `السلام عليكم ${student.name}، عندك ${balance?.amountDue ?? 0} مستحق. لو تحب نرتب الدفعة كلمني.`;
+      const amount = formatMoney(
+        balance?.amountDue ?? 0,
+        state.settings.currencyLabel,
+      );
+      const text = `السلام عليكم ${student.name}، عندك ${amount} مستحق. لو تحب نرتب الدفعة كلمني.`;
       return { type: "reminder", params: { studentId: student.id, text } };
     }
 
@@ -404,7 +427,7 @@ export const AI_TOOLS: FunctionDeclaration[] = [
   },
   {
     name: "get_today_overview",
-    description: "Today's lessons, total due and how many students reach a payment. Uses the client's Cairo date.",
+    description: "Today's lessons with each session's eligible student roster ids, total due and how many students reach a payment. Uses the client's Cairo date.",
     parametersJsonSchema: object({}),
   },
   {

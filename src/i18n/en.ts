@@ -338,6 +338,18 @@ export const en: DictShape = {
     suggestion4: "How much was collected this month?",
     proposalTitle: "Confirm before running",
     proposalExplain: "Nothing is saved until you confirm.",
+    proposalTypes: {
+      attendance: "Record attendance",
+      payment: "Record payment",
+      cancelSession: "Cancel lesson",
+      reminder: "Reminder message",
+    },
+    proposalSummary: {
+      attendance: "Lesson on {date} — {n} absent",
+      payment: "{name} — {amount} for {n} sessions",
+      cancelSession: "Cancel {group} lesson on {date}",
+      reminder: "Reminder for {name}",
+    },
     confirm: "Run",
     edit: "Edit",
     cancel: "Cancel",

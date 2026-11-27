@@ -88,7 +88,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <TutorDataProvider>
+    <TutorDataProvider key={user.uid}>
       <Shell>{children}</Shell>
     </TutorDataProvider>
   );

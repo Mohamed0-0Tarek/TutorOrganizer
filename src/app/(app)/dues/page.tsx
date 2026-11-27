@@ -21,6 +21,7 @@ export default function DuesPage() {
   const { t } = useI18n();
   const { groups, settings } = useTutorData();
   const { due, almostDue, total } = useDueStudents();
+  const currency = settings.currencyLabel || t.common.currency;
 
   const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function DuesPage() {
   function reminder(target: PayTarget) {
     const text = format(t.dues.reminderMessage, {
       name: target.student.name,
-      amount: formatMoney(target.balance.amountDue, t.common.currency),
+      amount: formatMoney(target.balance.amountDue, currency),
     });
     void navigator.clipboard?.writeText(text).catch(() => {});
     setNotice(t.dues.copied);
@@ -54,7 +55,7 @@ export default function DuesPage() {
         <div>
           <p className="text-[12.5px] text-muted">{t.dues.total}</p>
           <p className="text-[20px] font-bold">
-            <NumberText>{formatMoney(total, t.common.currency)}</NumberText>
+            <NumberText>{formatMoney(total, currency)}</NumberText>
           </p>
         </div>
       </GlassCard>
@@ -97,7 +98,7 @@ export default function DuesPage() {
                     </Link>
                     <StatusChip tone="danger">
                       <NumberText>
-                        {formatMoney(target.balance.amountDue, t.common.currency)}
+                        {formatMoney(target.balance.amountDue, currency)}
                       </NumberText>
                     </StatusChip>
                   </div>

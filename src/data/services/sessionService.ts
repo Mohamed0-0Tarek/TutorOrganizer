@@ -7,14 +7,17 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { getFirebase } from "@/data/firebase/client";
-import { sessionDocPath, studentDocPath } from "@/data/paths";
+import { sessionDocPath } from "@/data/paths";
 import { computeCounters } from "@/domain/counters";
 import {
   extraSessionId,
   nextExtraSessionNumber,
 } from "@/domain/sessionId";
 import type { DateKey } from "@/domain/types";
-import type { CounterSource } from "./counterService";
+import {
+  appendCounterUpdates,
+  type CounterSource,
+} from "./counterService";
 
 /**
  * Cancelling a lesson must drop the counters it contributed. With a hydrated
@@ -40,15 +43,7 @@ export async function cancelSession(
     const session = sessionsById.get(sessionId);
     if (session) sessionsById.set(sessionId, { ...session, status: "cancelled" });
     const counters = computeCounters({ ...source, sessionsById });
-    for (const student of source.students) {
-      const next = counters.get(student.id);
-      if (!next) continue;
-      batch.update(doc(db, studentDocPath(uid, student.id)), {
-        sessionsCounted: next.counted,
-        sessionsPaid: next.paid,
-        updatedAt: serverTimestamp(),
-      });
-    }
+    appendCounterUpdates(batch, db, uid, source.students, counters);
   }
 
   await batch.commit();

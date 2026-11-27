@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Clock, Plus } from "lucide-react";
 import { BigPrimaryButton } from "@/components/ui/BigPrimaryButton";
 import { ConfirmCard } from "@/components/ui/ConfirmCard";
@@ -29,9 +29,12 @@ type View = "day" | "week";
 
 export default function SchedulePage() {
   const { t, locale } = useI18n();
-  const { sessions, groups, uid } = useTutorData();
+  const { sessions, sessionsById, groups, students, attendance, payments, settings, uid } =
+    useTutorData();
 
   const [view, setView] = useState<View>("day");
+  const [today, setToday] = useState(() => todayKey());
+  const todayRef = useRef(today);
   const [selected, setSelected] = useState(() => todayKey());
   const [extraOpen, setExtraOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Session | null>(null);
@@ -43,9 +46,32 @@ export default function SchedulePage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const horizon = useMemo(
-    () => nextDateKeys(todayKey(), GENERATION_HORIZON_DAYS),
-    [],
+    () => nextDateKeys(today, GENERATION_HORIZON_DAYS),
+    [today],
   );
+
+  // Leaving the PWA open past midnight must refresh "today". A ref carries the
+  // previous key so the effect never depends on stale state or nests setters.
+  useEffect(() => {
+    const refresh = () => {
+      const next = todayKey();
+      const previous = todayRef.current;
+      if (next === previous) return;
+      todayRef.current = next;
+      setToday(next);
+      setSelected((current) => (current === previous ? next : current));
+      setExtraDate((current) => (current === previous ? next : current));
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   const statusFor = (session: Session) => {
     if (session.status === "completed")
@@ -125,7 +151,13 @@ export default function SchedulePage() {
     setBusy(true);
     setMessage(null);
     try {
-      await cancelSession(uid, cancelTarget.id, cancelNote);
+      await cancelSession(uid, cancelTarget.id, cancelNote, {
+        students,
+        sessionsById,
+        attendance,
+        payments,
+        settings,
+      });
       setCancelTarget(null);
       setCancelNote("");
     } catch {
@@ -194,11 +226,11 @@ export default function SchedulePage() {
             return (
               <section key={dateKey}>
                 <h2 className="mb-1.5 px-1 text-[14px] font-semibold">
-                  {formatArabicDate(dateKey, {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
+                  {formatArabicDate(
+                    dateKey,
+                    { weekday: "long", day: "numeric", month: "long" },
+                    locale,
+                  )}
                 </h2>
                 {rows.length === 0 ? (
                   <p className="px-2 text-[12.5px] text-muted">

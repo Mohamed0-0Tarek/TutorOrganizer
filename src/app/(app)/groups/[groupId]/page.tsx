@@ -207,6 +207,7 @@ export default function GroupDetailPage() {
                           balance={balance}
                           t={t}
                           cycleLength={settings.cycleLength}
+                          currencyLabel={settings.currencyLabel || t.common.currency}
                         />
                       ) : null}
                     </GlassCard>

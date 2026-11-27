@@ -34,6 +34,7 @@ export function StudentForm({ student }: { student?: Student }) {
 
   const [name, setName] = useState(student?.name ?? "");
   const [groupId, setGroupId] = useState(() => {
+    if (student?.groupId) return student.groupId;
     if (typeof window === "undefined") return "";
     return new URLSearchParams(window.location.search).get("groupId") ?? "";
   });

@@ -6,14 +6,13 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { getFirebase } from "@/data/firebase/client";
-import {
-  paymentDocPath,
-  paymentsPath,
-  studentDocPath,
-} from "@/data/paths";
+import { paymentDocPath, paymentsPath } from "@/data/paths";
 import { computeCounters } from "@/domain/counters";
 import type { Payment } from "@/domain/types";
-import type { CounterSource } from "./counterService";
+import {
+  appendCounterUpdates,
+  type CounterSource,
+} from "./counterService";
 import { definedFields } from "./cleanPatch";
 
 export interface RecordPaymentInput {
@@ -50,15 +49,7 @@ function persist(
   payments: readonly Payment[],
 ): void {
   const counters = computeCounters({ ...source, payments });
-  for (const student of source.students) {
-    const next = counters.get(student.id);
-    if (!next) continue;
-    batch.update(doc(db, studentDocPath(uid, student.id)), {
-      sessionsCounted: next.counted,
-      sessionsPaid: next.paid,
-      updatedAt: serverTimestamp(),
-    });
-  }
+  appendCounterUpdates(batch, db, uid, source.students, counters);
 }
 
 /** Payment doc + counter persist in one offline-safe batch. */

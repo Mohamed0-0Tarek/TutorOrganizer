@@ -1,4 +1,10 @@
-import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import {
+  doc,
+  serverTimestamp,
+  writeBatch,
+  type Firestore,
+  type WriteBatch,
+} from "firebase/firestore";
 import { getFirebase } from "@/data/firebase/client";
 import { studentDocPath } from "@/data/paths";
 import { computeCounters } from "@/domain/counters";
@@ -20,19 +26,18 @@ export interface CounterSource {
 }
 
 /**
- * The ONLY writer of `students.sessionsCounted` / `students.sessionsPaid`.
- *
- * Uses a batched write (offline-safe, queued in IndexedDB). Never transactions.
+ * Append counter updates for students whose cached counters actually changed.
+ * The single writer of `sessionsCounted` / `sessionsPaid` — every other service
+ * funnels through here. Returns the number of docs queued in the batch.
  */
-export async function persistCounters(
+export function appendCounterUpdates(
+  batch: WriteBatch,
+  db: Firestore,
   uid: string,
   students: readonly Student[],
   counters: ReadonlyMap<string, Counters>,
-): Promise<number> {
-  const { db } = getFirebase();
-  const batch = writeBatch(db);
+): number {
   let changed = 0;
-
   for (const student of students) {
     const next = counters.get(student.id);
     if (!next) continue;
@@ -49,6 +54,22 @@ export async function persistCounters(
     });
     changed += 1;
   }
+  return changed;
+}
+
+/**
+ * The ONLY writer of `students.sessionsCounted` / `students.sessionsPaid`.
+ *
+ * Uses a batched write (offline-safe, queued in IndexedDB). Never transactions.
+ */
+export async function persistCounters(
+  uid: string,
+  students: readonly Student[],
+  counters: ReadonlyMap<string, Counters>,
+): Promise<number> {
+  const { db } = getFirebase();
+  const batch = writeBatch(db);
+  const changed = appendCounterUpdates(batch, db, uid, students, counters);
 
   if (changed > 0) {
     await batch.commit();

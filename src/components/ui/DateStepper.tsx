@@ -13,7 +13,7 @@ export function DateStepper({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const isToday = value === todayKey();
 
   return (
@@ -30,11 +30,11 @@ export function DateStepper({
       <div className="flex flex-col items-center">
         <p className="text-[15px] font-semibold">
           <NumberText>
-            {formatArabicDate(value, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
+            {formatArabicDate(
+              value,
+              { weekday: "long", day: "numeric", month: "long" },
+              locale,
+            )}
           </NumberText>
         </p>
         {!isToday ? (

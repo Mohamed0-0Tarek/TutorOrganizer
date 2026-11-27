@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -24,13 +24,9 @@ import { NumberText } from "@/components/ui/NumberText";
 import { Sheet } from "@/components/ui/Sheet";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useTutorData } from "@/data/provider/hooks";
-import {
-  saveLesson,
-  setAttendanceStatus,
-  type LessonResult,
-} from "@/data/services/attendanceService";
+import { saveLesson, type LessonResult } from "@/data/services/attendanceService";
+import { cancelSession } from "@/data/services/sessionService";
 import { formatArabicDate, formatTime } from "@/domain/dateKey";
-import { attendanceId } from "@/domain/sessionId";
 import type { Attendance, AttendanceStatus } from "@/domain/types";
 import { format } from "@/i18n";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -55,11 +51,14 @@ export default function AttendancePage() {
           .map((row) => row.studentId),
       ),
   );
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(session?.note ?? "");
+  const noteTouched = useRef(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<LessonResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
 
   const roster = useMemo(
     () =>
@@ -92,7 +91,13 @@ export default function AttendancePage() {
     return changes;
   }, [roster, attendance, absentIds, session?.id]);
 
-  const dirty = changedRows.size > 0 || note.trim().length > 0;
+  const dirty =
+    changedRows.size > 0 || note.trim() !== (session?.note ?? "").trim();
+
+  useEffect(() => {
+    if (noteTouched.current) return;
+    setNote(session?.note ?? "");
+  }, [session?.note]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -124,30 +129,35 @@ export default function AttendancePage() {
     const source = { students, sessionsById, attendance, payments, settings };
 
     try {
-      if (session.status === "completed") {
-        for (const [studentId, status] of changedRows) {
-          await setAttendanceStatus(uid, {
-            attendanceId: attendanceId(session.id, studentId),
-            sessionId: session.id,
-            studentId,
-            groupId: session.groupId,
-            dateKey: session.dateKey,
-            status,
-            source,
-          });
-        }
-        setResult({ countedStudents: roster.length, newlyDue: [] });
-      } else {
-        setResult(
-          await saveLesson(uid, {
-            sessionId: session.id,
-            absentIds: [...absentIds],
-            note,
-            source,
-          }),
-        );
-        setNote("");
-      }
+      const lessonResult = await saveLesson(uid, {
+        sessionId: session.id,
+        absentIds: [...absentIds],
+        note,
+        source,
+      });
+      setResult(lessonResult);
+      noteTouched.current = false;
+    } catch {
+      setMessage(t.forms.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmCancel() {
+    if (!uid || !session || busy) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await cancelSession(uid, session.id, cancelNote, {
+        students,
+        sessionsById,
+        attendance,
+        payments,
+        settings,
+      });
+      setCancelOpen(false);
+      setCancelNote("");
     } catch {
       setMessage(t.forms.saveFailed);
     } finally {
@@ -174,6 +184,8 @@ export default function AttendancePage() {
   }
 
   const presentCount = roster.length - absentIds.size;
+  const canSave =
+    session.status !== "cancelled" && (session.status !== "completed" || dirty);
 
   return (
     <div className="flex flex-col gap-5 pb-16">
@@ -188,27 +200,41 @@ export default function AttendancePage() {
         </button>
         <PageHeader
           title={session.groupName}
-          subtitle={`${formatArabicDate(session.dateKey, {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })} · ${formatTime(session.time, locale)}`}
+          subtitle={`${formatArabicDate(
+            session.dateKey,
+            { weekday: "long", day: "numeric", month: "long" },
+            locale,
+          )} · ${formatTime(session.time, locale)}`}
           action={
-            <StatusChip
-              tone={
-                session.status === "completed"
-                  ? "success"
+            <div className="flex items-center gap-2">
+              {session.status !== "cancelled" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancelNote("");
+                    setCancelOpen(true);
+                  }}
+                  className="press rounded-full px-2 py-1 text-[12px] text-danger"
+                >
+                  {t.attendance.cancelLesson}
+                </button>
+              ) : null}
+              <StatusChip
+                tone={
+                  session.status === "completed"
+                    ? "success"
+                    : session.status === "cancelled"
+                      ? "danger"
+                      : "neutral"
+                }
+              >
+                {session.status === "completed"
+                  ? t.schedule.completed
                   : session.status === "cancelled"
-                    ? "danger"
-                    : "neutral"
-              }
-            >
-              {session.status === "completed"
-                ? t.schedule.completed
-                : session.status === "cancelled"
-                  ? t.schedule.cancelled
-                  : t.schedule.scheduled}
-            </StatusChip>
+                    ? t.schedule.cancelled
+                    : t.schedule.scheduled}
+              </StatusChip>
+            </div>
           }
         />
       </div>
@@ -258,6 +284,7 @@ export default function AttendancePage() {
                           balance={balance}
                           t={t}
                           cycleLength={settings.cycleLength}
+                          currencyLabel={settings.currencyLabel || t.common.currency}
                         />
                       ) : null}
                     </div>
@@ -293,7 +320,10 @@ export default function AttendancePage() {
             rows={2}
             className={`${inputClass} min-h-16 py-2`}
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            onChange={(event) => {
+              noteTouched.current = true;
+              setNote(event.target.value);
+            }}
           />
         </Field>
       </GlassCard>
@@ -317,7 +347,7 @@ export default function AttendancePage() {
             <div className="flex-1">
               <BigPrimaryButton
                 onClick={() => void handleSave()}
-                disabled={busy || !dirty}
+                disabled={busy || !canSave}
               >
                 {busy ? (
                   <Loader2 size={16} className="animate-spin" aria-hidden />
@@ -385,6 +415,39 @@ export default function AttendancePage() {
           onCancel={() => setLeaveOpen(false)}
           onConfirm={() => router.push("/schedule")}
         />
+      </Sheet>
+
+      <Sheet
+        open={cancelOpen}
+        onClose={() => {
+          setCancelOpen(false);
+          setCancelNote("");
+        }}
+        title={t.schedule.cancelSession}
+      >
+        <div className="flex flex-col gap-3">
+          <ConfirmCard
+            title={t.schedule.cancelTitle}
+            body={t.schedule.cancelBody}
+            confirmLabel={t.schedule.cancelSession}
+            cancelLabel={t.common.cancel}
+            tone="danger"
+            busy={busy}
+            onCancel={() => {
+              setCancelOpen(false);
+              setCancelNote("");
+            }}
+            onConfirm={() => void confirmCancel()}
+          />
+          <Field label={t.attendance.note} hint={t.schedule.cancelNoteHint}>
+            <textarea
+              rows={2}
+              className={`${inputClass} min-h-16 py-2`}
+              value={cancelNote}
+              onChange={(event) => setCancelNote(event.target.value)}
+            />
+          </Field>
+        </div>
       </Sheet>
     </div>
   );

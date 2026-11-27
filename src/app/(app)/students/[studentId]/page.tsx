@@ -31,6 +31,7 @@ import {
   moveStudentAndReconcile,
   setStudentActiveAndReconcile,
 } from "@/data/services/enrollmentService";
+import { computeAttendanceCycles } from "@/domain/counters";
 import { formatArabicDate } from "@/domain/dateKey";
 import { formatMoney } from "@/domain/money";
 import type { Payment } from "@/domain/types";
@@ -38,7 +39,7 @@ import { format } from "@/i18n";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function StudentDetailPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const params = useParams();
   const raw = params.studentId;
   const studentId = Array.isArray(raw) ? raw[0] : raw;
@@ -85,15 +86,13 @@ export default function StudentDetailPage() {
     .filter((row) => row.studentId === student.id)
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
 
-  const cycleByRow = new Map<string, number>();
-  let countedSoFar = student.initialCounted;
-  for (const row of [...studentAttendance].reverse()) {
-    const counts =
-      row.status === "present" || (row.status === "absent" && settings.absenceCounts);
-    if (!counts) continue;
-    countedSoFar += 1;
-    cycleByRow.set(row.id, Math.floor((countedSoFar - 1) / settings.cycleLength) + 1);
-  }
+  const cycleByRow = computeAttendanceCycles(
+    student,
+    attendance,
+    sessionsById,
+    settings,
+  );
+  const currency = settings.currencyLabel || t.common.currency;
 
   const phoneDigits = student.phone?.replace(/[^\d+]/g, "") ?? "";
 
@@ -116,6 +115,7 @@ export default function StudentDetailPage() {
                 balance={balance}
                 t={t}
                 cycleLength={settings.cycleLength}
+                currencyLabel={currency}
               />
             ) : undefined
           }
@@ -132,17 +132,17 @@ export default function StudentDetailPage() {
           <span className="text-muted">
             {t.students.price}:{" "}
             <NumberText className="font-semibold text-ink">
-              {formatMoney(student.pricePerSession, t.common.currency)}
+              {formatMoney(student.pricePerSession, currency)}
             </NumberText>
           </span>
           <span className="text-muted">
             {t.students.startDate}:{" "}
             <NumberText className="font-semibold text-ink">
-              {formatArabicDate(student.startedAtKey, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
+              {formatArabicDate(
+                student.startedAtKey,
+                { day: "numeric", month: "short", year: "numeric" },
+                locale,
+              )}
             </NumberText>
           </span>
           {balance ? (
@@ -349,10 +349,11 @@ export default function StudentDetailPage() {
                     </p>
                     <p className="text-[12px] text-muted">
                       <NumberText>
-                        {formatArabicDate(row.dateKey, {
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {formatArabicDate(
+                          row.dateKey,
+                          { day: "numeric", month: "short" },
+                          locale,
+                        )}
                       </NumberText>
                       </p>
                       {cycleByRow.has(row.id) ? (
@@ -394,15 +395,16 @@ export default function StudentDetailPage() {
                 <div>
                   <p className="text-[14px] font-semibold">
                     <NumberText>
-                      {formatMoney(payment.amount, t.common.currency)}
+                      {formatMoney(payment.amount, currency)}
                     </NumberText>
                   </p>
                   <p className="text-[12px] text-muted">
                     <NumberText>
-                      {formatArabicDate(payment.dateKey, {
-                        day: "numeric",
-                        month: "short",
-                      })}
+                      {formatArabicDate(
+                        payment.dateKey,
+                        { day: "numeric", month: "short" },
+                        locale,
+                      )}
                     </NumberText>{" "}
                     · <NumberText>{payment.sessionsCovered}</NumberText>{" "}
                     {t.today.sessionsToday}

@@ -40,7 +40,7 @@ export default function TodayPage() {
   // Clock-dependent copy is only rendered after hydration (no mismatch, no
   // setState inside an effect).
   const header = mounted
-    ? { greeting, date: formatArabicDate(todayKey()) }
+    ? { greeting, date: formatArabicDate(todayKey(), undefined, locale) }
     : { greeting: t.today.title, date: "" };
 
   const activeStudents = students.filter((student) => student.active);
@@ -197,6 +197,7 @@ export default function TodayPage() {
                           balance={balance}
                           t={t}
                           cycleLength={settings.cycleLength}
+                          currencyLabel={settings.currencyLabel || t.common.currency}
                         />
                       </li>
                     );
@@ -220,7 +221,10 @@ export default function TodayPage() {
                   <p className="mt-0.5 text-[12.5px] text-muted">
                     {t.today.dueAmount}:{" "}
                     <NumberText>
-                      {formatMoney(dueTotal, t.common.currency)}
+                      {formatMoney(
+                        dueTotal,
+                        settings.currencyLabel || t.common.currency,
+                      )}
                     </NumberText>
                   </p>
                 </div>

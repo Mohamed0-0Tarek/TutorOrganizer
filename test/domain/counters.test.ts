@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCounters } from "@/domain/counters";
+import { computeAttendanceCycles, computeCounters } from "@/domain/counters";
 import type { Attendance, Session } from "@/domain/types";
 import {
   TEST_SETTINGS,
@@ -306,5 +306,131 @@ describe("computeCounters", () => {
     });
 
     expect(counters.get("s1")?.counted).toBe(0);
+  });
+});
+
+describe("computeAttendanceCycles", () => {
+  function buildRows(count: number) {
+    const keys = weeklyDateKeys("2026-01-05", count);
+    const sessions = keys.map((dateKey, index) =>
+      makeSession({ id: `lesson_${index + 1}`, dateKey }),
+    );
+    const attendance = sessions.map((session) =>
+      makeAttendance({
+        sessionId: session.id,
+        studentId: "s1",
+        dateKey: session.dateKey,
+      }),
+    );
+    return { sessions, attendance };
+  }
+
+  it("numbers the first four counted lessons as cycle 1 and the fifth as cycle 2", () => {
+    const student = makeStudent({ id: "s1" });
+    const { sessions, attendance } = buildRows(5);
+
+    const cycles = computeAttendanceCycles(
+      student,
+      attendance,
+      sessionsMap(...sessions),
+      TEST_SETTINGS,
+    );
+
+    expect([...cycles.values()]).toEqual([1, 1, 1, 1, 2]);
+  });
+
+  it("starts from initialCounted and stays chronological for shuffled input", () => {
+    const student = makeStudent({ id: "s1", initialCounted: 3 });
+    const { sessions, attendance } = buildRows(3);
+
+    const cycles = computeAttendanceCycles(
+      student,
+      [...attendance].reverse(),
+      sessionsMap(...sessions),
+      TEST_SETTINGS,
+    );
+
+    expect([...cycles.values()]).toEqual([1, 2, 2]);
+  });
+
+  it("omits cancelled and scheduled sessions", () => {
+    const student = makeStudent({ id: "s1" });
+    const cancelled = makeSession({ id: "cancelled", status: "cancelled" });
+    const scheduled = makeSession({ id: "scheduled", status: "scheduled" });
+    const completed = makeSession({ id: "completed" });
+    const attendance = [cancelled, scheduled, completed].map((session) =>
+      makeAttendance({ sessionId: session.id, studentId: "s1" }),
+    );
+
+    const cycles = computeAttendanceCycles(
+      student,
+      attendance,
+      sessionsMap(cancelled, scheduled, completed),
+      TEST_SETTINGS,
+    );
+
+    expect([...cycles.keys()]).toEqual([attendance[2].id]);
+    expect(cycles.get(attendance[2].id)).toBe(1);
+  });
+
+  it("omits lessons before startedAtKey", () => {
+    const student = makeStudent({ id: "s1", startedAtKey: "2026-01-12" });
+    const early = makeSession({ id: "early", dateKey: "2026-01-05" });
+    const later = makeSession({ id: "later", dateKey: "2026-01-19" });
+    const attendance = [early, later].map((session) =>
+      makeAttendance({
+        sessionId: session.id,
+        studentId: "s1",
+        dateKey: session.dateKey,
+      }),
+    );
+
+    const cycles = computeAttendanceCycles(
+      student,
+      attendance,
+      sessionsMap(early, later),
+      TEST_SETTINGS,
+    );
+
+    expect([...cycles.keys()]).toEqual([attendance[1].id]);
+  });
+
+  it("omits absences when absenceCounts is false", () => {
+    const student = makeStudent({ id: "s1" });
+    const session = makeSession({ id: "g1_20260105" });
+    const attendance = [
+      makeAttendance({
+        sessionId: session.id,
+        studentId: "s1",
+        status: "absent",
+      }),
+    ];
+
+    const cycles = computeAttendanceCycles(
+      student,
+      attendance,
+      sessionsMap(session),
+      { absenceCounts: false, cycleLength: 4 },
+    );
+
+    expect(cycles.size).toBe(0);
+  });
+
+  it("deduplicates rows and ignores attendance of other students", () => {
+    const student = makeStudent({ id: "s1" });
+    const session = makeSession({ id: "g1_20260105" });
+    const own = makeAttendance({ sessionId: session.id, studentId: "s1" });
+    const other = makeAttendance({ sessionId: session.id, studentId: "s2" });
+
+    const cycles = computeAttendanceCycles(
+      student,
+      [own, { ...own, id: "duplicate" }, other],
+      sessionsMap(session),
+      TEST_SETTINGS,
+    );
+
+    expect(cycles.size).toBe(1);
+    expect([...cycles.values()]).toEqual([1]);
+    expect(cycles.has(other.id)).toBe(false);
   });
 });

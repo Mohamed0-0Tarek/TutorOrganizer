@@ -136,11 +136,12 @@ export function formatArabicDate(
     day: "numeric",
     month: "long",
   },
+  locale: "ar" | "en" = "ar",
 ): string {
   const { year, month, day } = parseDateKey(key);
   // Noon UTC keeps the Cairo rendering on the intended day for any offset.
   const instant = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG-u-nu-latn" : "en-US", {
     timeZone: APP_TIMEZONE,
     ...options,
   }).format(instant);

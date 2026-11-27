@@ -123,6 +123,7 @@ export default function StudentsPage() {
                         balance={balance}
                         t={t}
                         cycleLength={settings.cycleLength}
+                        currencyLabel={settings.currencyLabel || t.common.currency}
                       />
                     ) : null}
                   </GlassCard>

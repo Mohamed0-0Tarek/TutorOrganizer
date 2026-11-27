@@ -78,6 +78,56 @@ export function computeCounters(
   return result;
 }
 
+/**
+ * Cycle number (1, 2, 3, …) for each counted attendance row of one student.
+ *
+ * Mirrors `computeCounters` exactly: only completed sessions from
+ * `student.startedAtKey` onward, deduplicated per session, and only present
+ * rows (or absent rows when absences count). Rows that do not count are
+ * omitted. Attendance for other students is ignored so callers may pass the
+ * full collection. Pure and deterministic.
+ */
+export function computeAttendanceCycles(
+  student: Student,
+  attendance: readonly Attendance[],
+  sessionsById: ReadonlyMap<string, Session>,
+  settings: Pick<TutorSettings, "absenceCounts" | "cycleLength">,
+): Map<string, number> {
+  const eligible = attendance
+    .filter((row) => row.studentId === student.id)
+    .map((row) => ({ row, session: sessionsById.get(row.sessionId) }))
+    .filter(
+      (entry): entry is { row: Attendance; session: Session } =>
+        !!entry.session &&
+        entry.session.status === "completed" &&
+        entry.session.dateKey >= student.startedAtKey,
+    )
+    .sort(
+      (a, b) =>
+        a.session.dateKey.localeCompare(b.session.dateKey) ||
+        a.session.time.localeCompare(b.session.time) ||
+        a.row.id.localeCompare(b.row.id),
+    );
+
+  const seen = new Set<string>();
+  const cycles = new Map<string, number>();
+  let counted = student.initialCounted;
+  for (const { row } of eligible) {
+    const dedupeKey = `${row.sessionId}::${row.studentId}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const counts =
+      row.status === "present" ||
+      (row.status === "absent" && settings.absenceCounts);
+    if (!counts) continue;
+
+    counted += 1;
+    cycles.set(row.id, Math.floor((counted - 1) / settings.cycleLength) + 1);
+  }
+  return cycles;
+}
+
 /** Convenience for a single student (used by detail screens and tests). */
 export function countersForStudent(
   studentId: string,

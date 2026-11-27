@@ -39,6 +39,7 @@ export function PaymentSheet({
   const { t } = useI18n();
   const { uid, balances, settings, students, sessionsById, attendance, payments } =
     useTutorData();
+  const currency = settings.currencyLabel || t.common.currency;
 
   const [amount, setAmount] = useState(
     String(payment?.amount ?? expectedCycleAmount(student.pricePerSession, settings.cycleLength)),
@@ -150,10 +151,15 @@ export function PaymentSheet({
             <div>
               <p className="text-[14px] font-semibold">{student.name}</p>
               <p className="text-[12px] text-muted">
-                {t.students.price}: {formatMoney(student.pricePerSession, t.common.currency)}
+                {t.students.price}: {formatMoney(student.pricePerSession, currency)}
               </p>
             </div>
-            <BalanceChip balance={preview} t={t} cycleLength={settings.cycleLength} />
+            <BalanceChip
+              balance={preview}
+              t={t}
+              cycleLength={settings.cycleLength}
+              currencyLabel={currency}
+            />
           </GlassCard>
 
           <div className="grid grid-cols-2 gap-3">

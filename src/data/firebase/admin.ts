@@ -10,6 +10,10 @@ import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let cached: { app: App; db: Firestore } | null = null;
 
+/** Type-only reference to jose: the ESM module itself is still dynamically imported. */
+type JoseModule = typeof import("jose");
+let cachedJwks: ReturnType<JoseModule["createRemoteJWKSet"]> | null = null;
+
 /**
  * Server-only singleton for Firestore. We deliberately do NOT import
  * `firebase-admin/auth`: on Vercel it pulls `jwks-rsa` → `jose` (ESM) through a
@@ -85,12 +89,15 @@ export async function verifyTutorToken(token: string): Promise<{ uid: string }> 
   }
 
   const { createRemoteJWKSet, jwtVerify } = await import("jose");
-  const jwks = createRemoteJWKSet(
-    new URL(
-      "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
-    ),
-  );
-  const { payload } = await jwtVerify(token, jwks, {
+  // Warm serverless instances reuse the JWKSet (and its cached Google keys).
+  if (!cachedJwks) {
+    cachedJwks = createRemoteJWKSet(
+      new URL(
+        "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
+      ),
+    );
+  }
+  const { payload } = await jwtVerify(token, cachedJwks, {
     issuer: `https://securetoken.google.com/${projectId}`,
     audience: projectId,
     algorithms: ["RS256"],

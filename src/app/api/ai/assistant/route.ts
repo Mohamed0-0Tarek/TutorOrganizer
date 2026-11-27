@@ -15,6 +15,7 @@ import {
   loadState,
   type ToolContext,
 } from "@/data/ai/tools";
+import { todayKey } from "@/domain/dateKey";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -26,15 +27,32 @@ const FALLBACK_GEMINI = PRIMARY_MODEL.includes("lite")
   : "gemini-3.5-flash-lite";
 
 /** Config probe: booleans only, no secret values. */
-export async function GET() {
-  let firestore = "unknown";
-  try {
-    await getAdmin().db.doc("users/healthcheck-probe").get();
-    firestore = "ok";
-  } catch (error) {
-    firestore = String(
-      (error as { code?: string })?.code ?? (error as Error)?.name ?? "error",
-    );
+export async function GET(request: NextRequest) {
+  const token = /^Bearer\s+(.+)$/i.exec(
+    request.headers.get("authorization") ?? "",
+  )?.[1];
+  let authorized = false;
+  if (token) {
+    try {
+      await verifyTutorToken(token);
+      authorized = true;
+    } catch {
+      // Missing/invalid token is reported as auth_required, never a 500.
+    }
+  }
+
+  let firestore = authorized ? "unknown" : "auth_required";
+  // No unauthenticated Firestore read in production (also keeps the probe free
+  // for local/dev health checks and the emulator integration tests).
+  if (authorized || process.env.NODE_ENV !== "production") {
+    try {
+      await getAdmin().db.doc("users/healthcheck-probe").get();
+      firestore = "ok";
+    } catch (error) {
+      firestore = String(
+        (error as { code?: string })?.code ?? (error as Error)?.name ?? "error",
+      );
+    }
   }
 
   return NextResponse.json({
@@ -75,29 +93,21 @@ export async function POST(request: NextRequest) {
   }
   const body = parsedBody.data;
 
-  // 3) Daily cap, per tutor and Cairo day.
+  // 3) Daily cap, per tutor and Cairo day (computed on the server, never trusted
+  // from the client body). The increment is charged only after a valid reply.
+  const serverToday = todayKey();
   const limit = Math.max(1, Number(process.env.AI_DAILY_LIMIT ?? 100) || 100);
+  let count = 0;
   try {
-    const usageRef = getAdmin().db.doc(`users/${uid}/meta/aiUsage`);
-    const usage = await usageRef.get();
+    const usage = await getAdmin().db.doc(`users/${uid}/meta/aiUsage`).get();
     const usageData = usage.data() as
       | { dateKey?: string; count?: number }
       | undefined;
-    const count =
-      usageData?.dateKey === body.clientToday
-        ? Number(usageData?.count ?? 0)
-        : 0;
+    count =
+      usageData?.dateKey === serverToday ? Number(usageData?.count ?? 0) : 0;
     if (count >= limit) {
       return NextResponse.json({ error: "limitReached" }, { status: 429 });
     }
-    await usageRef.set(
-      {
-        dateKey: body.clientToday,
-        count: count + 1,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true },
-    );
   } catch (error) {
     console.warn(
       "ai_usage_error",
@@ -105,6 +115,22 @@ export async function POST(request: NextRequest) {
       String((error as { code?: string })?.code ?? ""),
     );
     return NextResponse.json({ error: "usageError" }, { status: 503 });
+  }
+
+  // A transient write failure must not discard an already generated answer.
+  async function chargeQuota(): Promise<void> {
+    try {
+      await getAdmin().db.doc(`users/${uid}/meta/aiUsage`).set(
+        {
+          dateKey: serverToday,
+          count: count + 1,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    } catch (error) {
+      console.warn("ai_usage_write_error", (error as Error)?.name ?? "Error");
+    }
   }
 
   if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
@@ -147,6 +173,7 @@ export async function POST(request: NextRequest) {
       break;
     } catch (error) {
       if (error instanceof ClarificationNeeded) {
+        await chargeQuota();
         return NextResponse.json({
           answer:
             body.locale === "ar" ? "أي طالب تقصد؟" : "Which student do you mean?",
@@ -161,5 +188,6 @@ export async function POST(request: NextRequest) {
   if (!reply) {
     return NextResponse.json({ error: "modelError" }, { status: 502 });
   }
+  await chargeQuota();
   return NextResponse.json(reply);
 }

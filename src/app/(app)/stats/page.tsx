@@ -40,9 +40,13 @@ import {
 import { formatArabicDate } from "@/domain/dateKey";
 import { useI18n } from "@/i18n/I18nProvider";
 
-function monthLabel(key: string, long: boolean): string {
+function monthLabel(
+  key: string,
+  long: boolean,
+  locale: "ar" | "en" = "ar",
+): string {
   const [year, month] = key.split("-").map(Number);
-  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-EG-u-nu-latn" : "en-US", {
     timeZone: "UTC",
     month: long ? "long" : "short",
     ...(long ? { year: "numeric" } : {}),
@@ -50,9 +54,10 @@ function monthLabel(key: string, long: boolean): string {
 }
 
 export default function StatsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { students, groups, payments, attendance, sessionsById, balances, settings } =
     useTutorData();
+  const currency = settings.currencyLabel || t.common.currency;
   const { total: outstanding } = useDueStudents();
 
   const [monthKey, setMonthKey] = useState(() => monthKeyOf(todayKey()));
@@ -64,7 +69,7 @@ export default function StatsPage() {
       rate: attendanceRate(attendance, sessionsById, monthKey),
       income: incomeByMonth(payments, monthKey, 6).map((row) => ({
         ...row,
-        label: monthLabel(row.monthKey, false),
+        label: monthLabel(row.monthKey, false, locale),
       })),
       byGroup: attendanceByGroup(attendance, sessionsById, groups, monthKey),
       absences: topAbsences(attendance, sessionsById, students, monthKey),
@@ -80,6 +85,7 @@ export default function StatsPage() {
     sessionsById,
     groups,
     balances,
+    locale,
   ]);
 
   const hasData =
@@ -91,7 +97,7 @@ export default function StatsPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title={t.stats.title} subtitle={monthLabel(monthKey, true)} />
+      <PageHeader title={t.stats.title} subtitle={monthLabel(monthKey, true, locale)} />
 
       <div className="glass-card flex items-center justify-between gap-2 p-2">
         <button
@@ -102,7 +108,7 @@ export default function StatsPage() {
         >
           <ChevronRight size={20} className="rtl:rotate-180" aria-hidden />
         </button>
-        <p className="text-[15px] font-semibold">{monthLabel(monthKey, true)}</p>
+        <p className="text-[15px] font-semibold">{monthLabel(monthKey, true, locale)}</p>
         <button
           type="button"
           aria-label={t.stats.nextMonth}
@@ -120,7 +126,7 @@ export default function StatsPage() {
           </span>
           <span className="text-[19px] font-bold">
             <NumberText>
-              {formatMoney(stats.collected, t.common.currency)}
+              {formatMoney(stats.collected, currency)}
             </NumberText>
           </span>
         </GlassCard>
@@ -129,7 +135,7 @@ export default function StatsPage() {
             <BarChart3 size={14} aria-hidden /> {t.stats.outstanding}
           </span>
           <span className="text-[19px] font-bold">
-            <NumberText>{formatMoney(outstanding, t.common.currency)}</NumberText>
+            <NumberText>{formatMoney(outstanding, currency)}</NumberText>
           </span>
         </GlassCard>
         <GlassCard className="flex flex-col gap-1 p-4">
@@ -138,7 +144,7 @@ export default function StatsPage() {
           </span>
           <span className="text-[19px] font-bold">
             <NumberText>
-              {formatMoney(stats.expected, t.common.currency)}
+              {formatMoney(stats.expected, currency)}
             </NumberText>
           </span>
         </GlassCard>
@@ -170,7 +176,7 @@ export default function StatsPage() {
                     <YAxis tick={tick} axisLine={false} tickLine={false} width={48} />
                     <Tooltip
                       formatter={(value) => [
-                        `${Number(value)} ${t.common.currency}`,
+                        `${Number(value)} ${currency}`,
                         t.stats.collected,
                       ]}
                     />
@@ -251,16 +257,17 @@ export default function StatsPage() {
                       <p className="truncate text-[14px] font-medium">{row.name}</p>
                       <p className="text-[12px] text-muted">
                         {row.lastPaymentKey
-                          ? formatArabicDate(row.lastPaymentKey, {
-                              day: "numeric",
-                              month: "short",
-                            })
+                          ? formatArabicDate(
+                              row.lastPaymentKey,
+                              { day: "numeric", month: "short" },
+                              locale,
+                            )
                           : t.stats.neverPaid}
                       </p>
                     </div>
                     <span className="text-[13px] font-semibold">
                       <NumberText>
-                        {formatMoney(row.amountDue, t.common.currency)}
+                        {formatMoney(row.amountDue, currency)}
                       </NumberText>
                     </span>
                   </li>
@@ -283,7 +290,7 @@ export default function StatsPage() {
                     <span className="text-[14px]">{row.groupName}</span>
                     <span className="text-[13px] font-semibold">
                       <NumberText>
-                        {formatMoney(row.amount, t.common.currency)}
+                        {formatMoney(row.amount, currency)}
                       </NumberText>
                     </span>
                   </li>

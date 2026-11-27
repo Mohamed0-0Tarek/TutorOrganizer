@@ -74,12 +74,14 @@ export function useDueStudents() {
 
 export function useTodaySessions() {
   const { sessions } = useTutorData();
-  return useMemo(() => {
-    const key = todayKey();
-    return sessions
-      .filter((session) => session.dateKey === key)
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }, [sessions]);
+  const key = todayKey();
+  return useMemo(
+    () =>
+      sessions
+        .filter((session) => session.dateKey === key)
+        .sort((a, b) => a.time.localeCompare(b.time)),
+    [sessions, key],
+  );
 }
 
 /** Everything the Today screen needs, computed once from hydrated state. */

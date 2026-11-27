@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
 import { BigPrimaryButton } from "@/components/ui/BigPrimaryButton";
@@ -19,9 +19,10 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<AuthErrorKey | null>(null);
+  const signingUpRef = useRef(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/");
+    if (!loading && user && !signingUpRef.current) router.replace("/");
   }, [loading, user, router]);
 
   if (!configured) {
@@ -39,16 +40,18 @@ export default function SignInPage() {
     event.preventDefault();
     setBusy(true);
     setErrorKey(null);
+    if (mode === "signup") signingUpRef.current = true;
     const result =
       mode === "signin"
         ? await signIn(email, password)
         : await signUp(email, password);
     setBusy(false);
     if (!result.ok) {
+      if (mode === "signup") signingUpRef.current = false;
       setErrorKey(result.errorKey);
       return;
     }
-    router.replace("/");
+    router.replace(mode === "signup" ? "/onboarding" : "/");
   }
 
   return (

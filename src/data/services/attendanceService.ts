@@ -1,10 +1,6 @@
-import { doc, serverTimestamp, writeBatch, type Firestore } from "firebase/firestore";
+import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { getFirebase } from "@/data/firebase/client";
-import {
-  attendanceDocPath,
-  sessionDocPath,
-  studentDocPath,
-} from "@/data/paths";
+import { attendanceDocPath, sessionDocPath } from "@/data/paths";
 import { computeStudentBalance } from "@/domain/balanceCalculator";
 import { computeCounters } from "@/domain/counters";
 import { attendanceId } from "@/domain/sessionId";
@@ -13,7 +9,10 @@ import type {
   AttendanceStatus,
   SessionStatus,
 } from "@/domain/types";
-import type { CounterSource } from "./counterService";
+import {
+  appendCounterUpdates,
+  type CounterSource,
+} from "./counterService";
 
 /** What the counters would be once a lesson's attendance is written. */
 function withLesson(
@@ -34,24 +33,6 @@ function withLesson(
       ...rows,
     ],
   };
-}
-
-function persistCounters(
-  batch: ReturnType<typeof writeBatch>,
-  db: Firestore,
-  uid: string,
-  students: CounterSource["students"],
-  counters: ReturnType<typeof computeCounters>,
-): void {
-  for (const student of students) {
-    const next = counters.get(student.id);
-    if (!next) continue;
-    batch.update(doc(db, studentDocPath(uid, student.id)), {
-      sessionsCounted: next.counted,
-      sessionsPaid: next.paid,
-      updatedAt: serverTimestamp(),
-    });
-  }
 }
 
 export interface SaveLessonInput {
@@ -126,10 +107,10 @@ export async function saveLesson(
   }
   batch.update(doc(db, sessionDocPath(uid, session.id)), {
     status: "completed",
-    ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+    ...(input.note !== undefined ? { note: input.note.trim() || null } : {}),
     updatedAt: serverTimestamp(),
   });
-  persistCounters(batch, db, uid, input.source.students, after);
+  appendCounterUpdates(batch, db, uid, input.source.students, after);
 
   await batch.commit();
   if (typeof window !== "undefined") {
@@ -175,6 +156,6 @@ export async function setAttendanceStatus(
     ...updated,
     updatedAt: serverTimestamp(),
   });
-  persistCounters(batch, db, uid, input.source.students, counters);
+  appendCounterUpdates(batch, db, uid, input.source.students, counters);
   await batch.commit();
 }
