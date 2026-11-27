@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Pencil,
   UserRound,
+  Users,
 } from "lucide-react";
 import { BalanceChip } from "@/components/features/BalanceChip";
 import { ConfirmCard } from "@/components/ui/ConfirmCard";
@@ -73,9 +74,20 @@ export default function GroupDetailPage() {
           title={group.name}
           subtitle={group.subject}
           action={
-            !group.active ? (
-              <StatusChip tone="neutral">{t.groups.archived}</StatusChip>
-            ) : undefined
+            <div className="flex shrink-0 items-center gap-2">
+              {group.active ? (
+                <Link
+                  href={`/students/bulk?groupId=${group.id}`}
+                  className="press flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-white/70 bg-white/60 px-2.5 text-[12px] font-semibold text-primary-dark"
+                >
+                  <Users size={14} aria-hidden />
+                  {t.students.bulkShort}
+                </Link>
+              ) : null}
+              {!group.active ? (
+                <StatusChip tone="neutral">{t.groups.archived}</StatusChip>
+              ) : null}
+            </div>
           }
         />
       </div>

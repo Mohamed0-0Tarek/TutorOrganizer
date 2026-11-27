@@ -31,11 +31,13 @@ import {
 } from "@/data/mappers";
 import { createGroup } from "@/data/services/groupService";
 import {
+  bulkEnrollStudents,
   enrollStudent,
   moveStudentAndReconcile,
   setStudentActiveAndReconcile,
 } from "@/data/services/enrollmentService";
 import type { CounterSource } from "@/data/services/counterService";
+import { calculateBalance } from "@/domain/balanceCalculator";
 import { attendanceId, regularSessionId } from "@/domain/sessionId";
 import { DEFAULT_SETTINGS } from "@/domain/types";
 
@@ -195,5 +197,71 @@ describe("groups + students CRUD (Firestore emulator)", () => {
       sessionsCounted: 4,
       sessionsPaid: 2,
     });
+  }, 20_000);
+
+  it("bulk-enrolls students and writes only carried-over counters", async () => {
+    const before = await readSource();
+    const existingBefore = await getDoc(doc(db, studentDocPath(uid, studentId)));
+
+    const ids = await bulkEnrollStudents(
+      uid,
+      [
+        {
+          name: "كريم",
+          groupId,
+          pricePerSession: 50,
+          startedAtKey: DATE_KEY,
+          initialCounted: 6,
+          initialPaid: 0,
+        },
+        {
+          name: "ليلى",
+          groupId,
+          pricePerSession: 50,
+          startedAtKey: DATE_KEY,
+          initialCounted: 2,
+          initialPaid: 5,
+        },
+        {
+          name: "نور",
+          groupId,
+          pricePerSession: 50,
+          startedAtKey: DATE_KEY,
+        },
+      ],
+      before,
+    );
+
+    expect(ids).toHaveLength(3);
+    const snapshots = await Promise.all(
+      ids.map((id) => getDoc(doc(db, studentDocPath(uid, id)))),
+    );
+    expect(snapshots.map((snapshot) => snapshot.data()?.sessionsCounted)).toEqual([
+      6, 2, 0,
+    ]);
+    expect(snapshots.map((snapshot) => snapshot.data()?.sessionsPaid)).toEqual([
+      0, 5, 0,
+    ]);
+    expect(snapshots.every((snapshot) => snapshot.data()?.active === true)).toBe(
+      true,
+    );
+    const states = snapshots.map((snapshot) =>
+      calculateBalance({
+        counted: snapshot.data()?.sessionsCounted ?? 0,
+        paid: snapshot.data()?.sessionsPaid ?? 0,
+        pricePerSession: 50,
+        cycleLength: DEFAULT_SETTINGS.cycleLength,
+      }).state,
+    );
+    expect(states).toEqual(["DUE", "PAID_AHEAD", "SETTLED"]);
+
+    // Students already present had correct cached counters, so no rewrite.
+    const existingAfter = await getDoc(doc(db, studentDocPath(uid, studentId)));
+    expect(existingAfter.data()?.updatedAt).toEqual(
+      existingBefore.data()?.updatedAt,
+    );
+    expect(existingAfter.data()?.sessionsCounted).toBe(
+      existingBefore.data()?.sessionsCounted,
+    );
   }, 20_000);
 });

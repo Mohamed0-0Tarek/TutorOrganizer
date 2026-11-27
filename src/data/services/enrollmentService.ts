@@ -1,8 +1,13 @@
 import { todayKey } from "@/domain/dateKey";
 import type { Student } from "@/domain/types";
-import { reconcileStudent, type CounterSource } from "./counterService";
+import {
+  reconcileStudent,
+  reconcileStudents,
+  type CounterSource,
+} from "./counterService";
 import {
   createStudent,
+  createStudentsBatch,
   moveStudentToGroup,
   setStudentActive,
   updateStudent,
@@ -55,6 +60,26 @@ export async function enrollStudent(
     students: [...source.students, created],
   });
   return id;
+}
+
+/**
+ * Bulk onboarding from a paper notebook: one batch creates all students, then
+ * counterService persists carried-over counters in a separate batch (skipping
+ * students whose values are still zero).
+ */
+export async function bulkEnrollStudents(
+  uid: string,
+  inputs: readonly CreateStudentInput[],
+  source: CounterSource,
+): Promise<string[]> {
+  if (inputs.length === 0) return [];
+
+  const { ids, created } = await createStudentsBatch(uid, inputs);
+  await reconcileStudents(uid, ids, {
+    ...source,
+    students: [...source.students, ...created],
+  });
+  return ids;
 }
 
 export async function updateStudentAndReconcile(

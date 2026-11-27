@@ -4,12 +4,13 @@ import {
   doc,
   serverTimestamp,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { definedFields } from "./cleanPatch";
 import { getFirebase } from "@/data/firebase/client";
 import { studentDocPath, studentsPath } from "@/data/paths";
 import { todayKey } from "@/domain/dateKey";
-import type { DateKey } from "@/domain/types";
+import type { DateKey, Student } from "@/domain/types";
 
 export interface CreateStudentInput {
   name: string;
@@ -43,6 +44,65 @@ export async function createStudent(
     updatedAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/**
+ * Create many students in ONE offline-safe batch. Cached counters are seeded
+ * to zero here; `counterService` reconciles carried-over values afterwards.
+ */
+export async function createStudentsBatch(
+  uid: string,
+  inputs: readonly CreateStudentInput[],
+): Promise<{ ids: string[]; created: Student[] }> {
+  const { db } = getFirebase();
+  const batch = writeBatch(db);
+  const ids: string[] = [];
+  const created: Student[] = [];
+
+  for (const input of inputs) {
+    const ref = doc(collection(db, studentsPath(uid)));
+    const name = input.name.trim();
+    const phone = input.phone?.trim();
+    const note = input.note?.trim();
+    const startedAtKey = input.startedAtKey ?? todayKey();
+    const initialCounted = input.initialCounted ?? 0;
+    const initialPaid = input.initialPaid ?? 0;
+
+    batch.set(ref, {
+      name,
+      groupId: input.groupId,
+      pricePerSession: input.pricePerSession,
+      startedAtKey,
+      active: true,
+      ...(phone ? { phone } : {}),
+      ...(note ? { note } : {}),
+      initialCounted,
+      initialPaid,
+      sessionsCounted: 0,
+      sessionsPaid: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    ids.push(ref.id);
+    created.push({
+      id: ref.id,
+      name,
+      groupId: input.groupId,
+      pricePerSession: input.pricePerSession,
+      startedAtKey,
+      active: true,
+      ...(phone ? { phone } : {}),
+      ...(note ? { note } : {}),
+      initialCounted,
+      initialPaid,
+      sessionsCounted: 0,
+      sessionsPaid: 0,
+    });
+  }
+
+  await batch.commit();
+  return { ids, created };
 }
 
 export async function updateStudent(

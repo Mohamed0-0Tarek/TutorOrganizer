@@ -33,6 +33,13 @@ export default function OnboardingPage() {
             <BigPrimaryButton>{t.today.goToGroups}</BigPrimaryButton>
           </Link>
           <Link
+            href="/students/bulk"
+            className="press flex min-h-11 items-center justify-center gap-2 rounded-btn border border-white/70 bg-white/60 text-[13px] font-medium text-primary-dark"
+          >
+            <Users size={16} aria-hidden />
+            {t.auth.bulkShortcut}
+          </Link>
+          <Link
             href="/"
             className="flex min-h-11 items-center justify-center gap-2 text-[13px] text-muted"
           >

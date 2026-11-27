@@ -53,13 +53,22 @@ export default function StudentsPage() {
         title={t.students.title}
         subtitle={`${students.filter((student) => student.active).length} ${t.students.active}`}
         action={
-          <Link
-            href="/students/new"
-            className="press flex min-h-9 items-center gap-1 rounded-full bg-primary px-3 text-[12.5px] font-semibold text-white"
-          >
-            <Plus size={15} aria-hidden />
-            {t.students.addStudent}
-          </Link>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Link
+              href="/students/bulk"
+              className="press flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-white/70 bg-white/60 px-2.5 text-[12px] font-semibold text-primary-dark"
+            >
+              <Users size={14} aria-hidden />
+              {t.students.bulkShort}
+            </Link>
+            <Link
+              href="/students/new"
+              className="press flex min-h-9 shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 text-[12px] font-semibold text-white"
+            >
+              <Plus size={14} aria-hidden />
+              {t.students.addStudent}
+            </Link>
+          </div>
         }
       />
 

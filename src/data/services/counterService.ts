@@ -92,10 +92,10 @@ export async function reconcileCounters(
   return persistCounters(uid, source.students, counters);
 }
 
-/** Recompute a single student (e.g. after a payment). */
-export async function reconcileStudent(
+/** Recompute a subset of students in one counter-writer batch (e.g. bulk add). */
+export async function reconcileStudents(
   uid: string,
-  studentId: string,
+  studentIds: Iterable<string>,
   source: CounterSource,
 ): Promise<number> {
   const counters = computeCounters({
@@ -104,7 +104,16 @@ export async function reconcileStudent(
     attendance: source.attendance,
     payments: source.payments,
     settings: source.settings,
-    studentIds: [studentId],
+    studentIds,
   });
   return persistCounters(uid, source.students, counters);
+}
+
+/** Recompute a single student (e.g. after a payment). */
+export async function reconcileStudent(
+  uid: string,
+  studentId: string,
+  source: CounterSource,
+): Promise<number> {
+  return reconcileStudents(uid, [studentId], source);
 }
